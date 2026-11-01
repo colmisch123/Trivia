@@ -12,6 +12,12 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * End-Game Podium and Final Placement screen.
+ *
+ * <p>Displays final contestant scores sorted in descending order when all board questions
+ * have been answered, and provides a button to return to the Main Menu.</p>
+ */
 public class WinningMenu extends AbstractMenu {
     private boolean hasInit = false;
 
@@ -21,12 +27,15 @@ public class WinningMenu extends AbstractMenu {
 
     @Override
     public void onSetActive() {
-        if(hasInit) {
+        if (hasInit) {
             return;
         }
         hasInit = true;
         foreground.removeAll();
 
+        screen.syncLatePlayers();
+
+        // Sort players by score descending
         List<IPlayer> players = new ArrayList<>(screen.getJeopardyBoard().getPlayers());
         players.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
 
@@ -38,7 +47,8 @@ public class WinningMenu extends AbstractMenu {
                 .setNorth(30).setSouth(20)
                 .confirm(placements, screen, foreground);
 
-        int max = Math.min(players.size(), 5);
+        // Display top players
+        int max = Math.min(players.size(), 10);
         for (int i = 0; i < max; i++) {
             IPlayer p = players.get(i);
             JLabel label = new JLabel();
@@ -74,7 +84,7 @@ public class WinningMenu extends AbstractMenu {
 
     @Override
     public JPanel addBackground() {
-        return new JBackgroundPanel("player_select.jpg");
+        return new JBackgroundPanel("reward_menu.jpg");
     }
 
     @Override
@@ -84,6 +94,5 @@ public class WinningMenu extends AbstractMenu {
 
     @Override
     public void tick() {
-
     }
 }

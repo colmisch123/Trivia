@@ -1,5 +1,8 @@
 package intr;
 
+/**
+ * Interface contract for a Jeopardy question clue.
+ */
 public interface IQuestion {
     String getQuestion();
     String getAnswer();

@@ -3,6 +3,9 @@ package impl;
 import intr.ISubject;
 import intr.ISubjectFactory;
 
+/**
+ * Factory for instantiating {@link JeopardySubject} category instances.
+ */
 public class JeopardySubjectFactory implements ISubjectFactory<ISubject> {
 
     @Override

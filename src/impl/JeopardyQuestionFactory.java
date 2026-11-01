@@ -3,7 +3,11 @@ package impl;
 import intr.IQuestion;
 import intr.IQuestionFactory;
 
+/**
+ * Factory for instantiating {@link JeopardyQuestion} instances.
+ */
 public class JeopardyQuestionFactory implements IQuestionFactory<IQuestion> {
+
     @Override
     public IQuestion create(String question, String answer, int value) {
         return new JeopardyQuestion(question, answer, value);

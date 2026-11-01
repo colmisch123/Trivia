@@ -1,14 +1,25 @@
 package menu;
 
 import screen.Screen;
-import util.configure.ButtonConfigure;
 import util.JBackgroundPanel;
 import util.JButtonListener;
+import util.configure.ButtonConfigure;
 import util.configure.TextConfigure;
 
 import javax.swing.*;
 import java.awt.*;
 
+/**
+ * Game Title and Start Menu screen.
+ *
+ * <p>Primary entry point for navigating to:
+ * <ul>
+ *   <li><b>Start</b>: Enters player setup ({@link PlayerMenuManager})</li>
+ *   <li><b>Load</b>: Selects a different board JSON file ({@link LoadMenuManager})</li>
+ *   <li><b>Custom</b>: Opens the board builder ({@link QuestionsCreatorMenu})</li>
+ * </ul>
+ * </p>
+ */
 public class StartMenuManager extends AbstractMenu {
 
     public StartMenuManager(Screen screen) {
@@ -17,7 +28,6 @@ public class StartMenuManager extends AbstractMenu {
 
     @Override
     public void onReset() {
-
     }
 
     @Override
@@ -47,6 +57,5 @@ public class StartMenuManager extends AbstractMenu {
 
     @Override
     public void tick() {
-
     }
 }

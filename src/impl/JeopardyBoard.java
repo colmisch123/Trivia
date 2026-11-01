@@ -9,28 +9,31 @@ import util.JsonHandler;
 import java.util.ArrayList;
 import java.util.List;
 
-//Manages the questions and players, the whole board. DOES not do GUI. Purely logic.
-//Gets initialized after user presses "Start"
+/**
+ * Pure domain logic model managing the active game board: categories (subjects),
+ * questions, and registered contestants.
+ */
 public class JeopardyBoard implements IBoard<ISubject> {
     private List<ISubject> subjects;
     private final List<IPlayer> players;
 
     public JeopardyBoard() {
-        subjects = createDefaultSubjects();
-        JsonHandler.exportJsonToFile(JsonHandler.serializeBoard(this), Screen.DEFAULT_FILE_TO_OPEN);
-
         players = new ArrayList<>();
+        setSubjects(Screen.DEFAULT_FILE_TO_OPEN);
     }
 
+    /**
+     * Builds the standard default trivia categories if no custom board file is loaded.
+     */
     private List<ISubject> createDefaultSubjects() {
         List<ISubject> defaultSubjects = new ArrayList<>(5);
 
         JeopardySubject science = new JeopardySubject("Science");
         science.addQuestion(new JeopardyQuestion("What is the chemical symbol for water?", "H2O", 100));
         science.addQuestion(new JeopardyQuestion("Who developed the theory of relativity?", "Albert Einstein", 200));
-        science.addQuestion(new JeopardyQuestion( "What is the powerhouse of the cell?", "Mitochondria", 300));
+        science.addQuestion(new JeopardyQuestion("What is the powerhouse of the cell?", "Mitochondria", 300));
         science.addQuestion(new JeopardyQuestion("What gas do plants absorb during photosynthesis?", "Carbon dioxide", 400));
-        science.addQuestion(new JeopardyQuestion( "In physics, what is the unit of measurement for force?", "Newtons", 500));
+        science.addQuestion(new JeopardyQuestion("In physics, what is the unit of measurement for force?", "Newtons", 500));
 
         JeopardySubject history = new JeopardySubject("History");
         history.addQuestion(new JeopardyQuestion("Who was the first President of the United States?", "George Washington", 100));
@@ -41,7 +44,7 @@ public class JeopardyBoard implements IBoard<ISubject> {
 
         JeopardySubject literature = new JeopardySubject("Literature");
         literature.addQuestion(new JeopardyQuestion("Who wrote \"Romeo and Juliet\"?", "William Shakespeare", 100));
-        literature.addQuestion(new JeopardyQuestion("What is the title of J.K. Rowling's first Harry Potter book?", "Harry Potter and the Philosopher's Stone (or Sorcerer's Stone in the U.S.)", 200));
+        literature.addQuestion(new JeopardyQuestion("What is the title of J.K. Rowling's first Harry Potter book?", "Harry Potter and the Sorcerer's Stone", 200));
         literature.addQuestion(new JeopardyQuestion("Who wrote \"To Kill a Mockingbird\"?", "Harper Lee", 300));
         literature.addQuestion(new JeopardyQuestion("What dystopian novel by George Orwell explores themes of totalitarianism?", "1984", 400));
         literature.addQuestion(new JeopardyQuestion("Which Shakespeare play features the character Macbeth?", "Macbeth", 500));
@@ -82,18 +85,18 @@ public class JeopardyBoard implements IBoard<ISubject> {
     @Override
     public void setSubjects(String fileToOpen) {
         String json = JsonHandler.readJsonFromFile(fileToOpen);
-        if(json == null) {
-            System.out.println("Error reading " + fileToOpen + ". Using default instead");
-            subjects = createDefaultSubjects();
-            JsonHandler.exportJsonToFile(JsonHandler.serializeBoard(this), Screen.DEFAULT_FILE_TO_OPEN);
-        } else {
+        if (json != null && !json.isBlank()) {
             try {
                 subjects = JsonHandler.deSerializeSubjects(json, JeopardySubjectFactory.getFactory(), JeopardyQuestionFactory.getFactory());
+                System.out.println("JeopardyBoard: Successfully loaded board " + fileToOpen + " (" + (subjects != null ? subjects.size() : 0) + " categories)");
+                return;
             } catch (Exception e) {
-                System.out.println("Error deserializing " + fileToOpen + " (" + e.getMessage() + "). Using default instead");
-                subjects = createDefaultSubjects();
+                System.err.println("JeopardyBoard: Error deserializing " + fileToOpen + " (" + e.getMessage() + "). Falling back to default board.");
             }
+        } else {
+            System.err.println("JeopardyBoard: Could not read " + fileToOpen + ". Falling back to default board.");
         }
+        subjects = createDefaultSubjects();
     }
 
     @Override

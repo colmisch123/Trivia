@@ -1,1 +1,1 @@
-None
+Players with the same name count as the same person according to the server. It would be a good idea to ensure some sort of uniqueness system

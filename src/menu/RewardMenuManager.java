@@ -17,6 +17,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * Score Reward and Point Allocation screen.
+ *
+ * <p>Major functionalities:
+ * <ul>
+ *   <li>Displays the point value of the just-answered question</li>
+ *   <li>Warns and styles appropriately if a forbidden/negative tile was selected</li>
+ *   <li>Pre-selects the contestant who buzzed in first via mobile phone (or allows manual selection)</li>
+ *   <li>Supports manual bonus/penalty adjustments via the "+/- Custom Pts" button</li>
+ *   <li>Advances to the next turn, or to {@link WinningMenu} if the board has been cleared</li>
+ * </ul>
+ * </p>
+ */
 public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestion> {
     private IQuestion currentQuestion;
     private IPlayer selectedPlayer = null;
@@ -54,11 +67,14 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
         selectedButton = null;
         playerButtons.clear();
 
+        // Sync any late-registered contestants into the active game board
+        screen.syncLatePlayers();
+
         IBoard<ISubject> board = screen.getJeopardyBoard();
         List<IPlayer> players = board.getPlayers();
 
         int questionValue = currentQuestion != null ? currentQuestion.getValue() : 0;
-        boolean isForbiddenTile = questionValue <= -500000 || 
+        boolean isForbiddenTile = questionValue <= -500000 ||
                 (currentQuestion != null && "DO NOT CHOOSE THIS TILE".equalsIgnoreCase(currentQuestion.getTileText()));
 
         // Row 0: Title
@@ -88,7 +104,7 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
                 .setNorth(5).setSouth(15)
                 .confirm(subtitle, screen, foreground);
 
-        // Row 2, Col 0: Custom Points Adjustment
+        // Row 2, Col 0: Custom Points Adjustment Dialog
         customPointsButton = new JButtonListener("+/- Custom Pts", (e) -> {
             if (selectedPlayer == null) {
                 JOptionPane.showMessageDialog(
@@ -136,12 +152,14 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
 
         // Row 2, Col 2: Next Button
         nextButton = new JButtonListener("Next =>", (e) -> {
+            // Apply points to the selected player
             if (selectedPlayer != null && currentQuestion != null) {
                 selectedPlayer.addScore(currentQuestion.getValue());
             }
             selectedPlayer = null;
             selectedButton = null;
 
+            // Check if the board has been cleared
             if (screen.getJeopardyBoardMenu() instanceof BoardMenuManager menu) {
                 if (menu.isBoardEmpty()) {
                     screen.setContentPane(screen.getWinningMenu());
@@ -231,7 +249,7 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
     }
 
     @Override
-    public void accept(IQuestion iQuestion) {
-        this.currentQuestion = iQuestion;
+    public void accept(IQuestion question) {
+        this.currentQuestion = question;
     }
 }

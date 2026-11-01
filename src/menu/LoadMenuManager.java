@@ -12,6 +12,18 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 
+/**
+ * Board Selector and Loader menu.
+ *
+ * <p>Allows the host to choose which question board to play before starting a game:
+ * <ul>
+ *   <li>Lists all available {@code .json} files found in {@code SavedBoards/}</li>
+ *   <li>Validates the selected file using {@link JsonHandler#validateBoardFile(String)}</li>
+ *   <li>Shows informative error dialogs if the board file is missing or malformed</li>
+ *   <li>Sets {@link Screen#setFileToOpen(String)} upon confirmation</li>
+ * </ul>
+ * </p>
+ */
 public class LoadMenuManager extends AbstractMenu {
     private JTextField enterSubject;
     private JLabel currentLoadedFile;
@@ -141,6 +153,5 @@ public class LoadMenuManager extends AbstractMenu {
 
     @Override
     public void tick() {
-
     }
 }

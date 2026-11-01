@@ -18,8 +18,22 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.function.Consumer;
 
-public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuestion> {
-    private JButtonListener answerButton;
+/**
+ * Question and Answer presentation screen.
+ *
+ * <p>Major functionalities:
+ * <ul>
+ *   <li>Presents the question text with auto-wrapping</li>
+ *   <li>Dynamically renders scaled question images (if present)</li>
+ *   <li>Provides play/stop controls for MP3 audio clips via {@link AudioPlayer}</li>
+ *   <li>Integrates with {@link BuzzerServer} for atomic mobile buzzing</li>
+ *   <li>Allows the host to mark an answer incorrect, locking out that contestant and reopening the buzzer</li>
+ *   <li>Reveals the answer and navigates to the {@link RewardMenuManager} to allocate points</li>
+ * </ul>
+        * </p>
+        */
+        public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuestion> {
+            private JButtonListener answerButton;
     private JButtonListener nextButton;
 
     private JLabel question;
@@ -35,6 +49,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
     private JButtonListener wrongAnswerBtn;
     private JButtonListener reopenBtn;
 
+    private boolean isAnswerRevealed = false;
     private IQuestion currentQuestion;
 
     public QuestionMenuManager(Screen screen) {
@@ -78,7 +93,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
 
         currentQuestion = new JeopardyQuestion("Default question", "Default answer", 0);
 
-        // Row 0: Question Label
+        // Row 0: Question Label (Initially visible)
         TextConfigure.configure()
                 .setX(0).setY(0)
                 .setText(currentQuestion.getQuestion())
@@ -88,7 +103,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
                 .setNorth(15).setSouth(10)
                 .confirm(question, screen, fg);
 
-        // Row 0 (Overlaid initially invisible): Answer Label
+        // Row 0: Answer Label (Initially hidden, revealed on "Show Answer")
         TextConfigure.configure()
                 .setX(0).setY(0)
                 .setText(currentQuestion.getAnswer())
@@ -99,7 +114,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
                 .setNorth(15).setSouth(10)
                 .confirm(answer, screen, fg);
 
-        // Row 1: Image Label
+        // Row 1: Optional Picture Clue
         GridBagConstraints gbcImage = new GridBagConstraints();
         gbcImage.gridx = 0;
         gbcImage.gridy = 1;
@@ -108,10 +123,9 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         screen.getLayout().setConstraints(imageLabel, gbcImage);
         fg.add(imageLabel);
 
-        // Row 2: Audio Panel
-        audioPanel = new JPanel();
+        // Row 2: Optional Audio Clue Player
+        audioPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
         audioPanel.setOpaque(false);
-        audioPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 15, 5));
 
         playAudioButton = new JButtonListener("Play Audio Clip", (e) -> {
             if (currentQuestion == null || currentQuestion.getAudio() == null) {
@@ -154,11 +168,10 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         screen.getLayout().setConstraints(audioPanel, gbcAudio);
         fg.add(audioPanel);
 
-        // Row 3: Buzzer Status & Control Bar
-        buzzerPanel = new JPanel();
+        // Row 3: Mobile Buzzer Status Bar & Host Controls
+        buzzerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 6));
         buzzerPanel.setOpaque(true);
         buzzerPanel.setBackground(Screen.JEOPARDY_BLUE);
-        buzzerPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 15, 6));
 
         buzzerStatusLabel = new JLabel("Mobile Buzzer: READY");
         buzzerStatusLabel.setFont(new Font("Century Gothic", Font.BOLD, 16));
@@ -191,10 +204,11 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         screen.getLayout().setConstraints(buzzerPanel, gbcBuzzer);
         fg.add(buzzerPanel);
 
-        // Row 4: Action Buttons (Show Answer, Next)
+        // Row 4: Action Buttons (Show Answer -> Next)
         answerButton = new JButtonListener("Show Answer", (e) -> {
             AudioPlayer.stop();
-            BuzzerServer.getInstance().closeBuzzer();
+            isAnswerRevealed = true;
+            BuzzerServer.getInstance().setAnswerRevealed(true);
             answerButton.setVisible(false);
             nextButton.setVisible(true);
             question.setVisible(false);
@@ -203,14 +217,16 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
 
         nextButton = new JButtonListener("Next =>", (e) -> {
             AudioPlayer.stop();
+            isAnswerRevealed = false;
+            BuzzerServer.getInstance().setAnswerRevealed(false);
             BuzzerServer.getInstance().closeBuzzer();
             answerButton.setVisible(true);
             nextButton.setVisible(false);
             question.setVisible(true);
             answer.setVisible(false);
 
-            if(screen.getRewardMenu() instanceof Consumer setCurrentQuestion) {
-                setCurrentQuestion.accept(currentQuestion);
+            if (screen.getRewardMenu() instanceof RewardMenuManager rewardMenu) {
+                rewardMenu.accept(currentQuestion);
             }
 
             screen.setContentPane(screen.getRewardMenu());
@@ -234,6 +250,8 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
     @Override
     public void onSetActive() {
         AudioPlayer.stop();
+        isAnswerRevealed = false;
+        BuzzerServer.getInstance().setAnswerRevealed(false);
 
         answerButton.setVisible(true);
         nextButton.setVisible(false);
@@ -253,7 +271,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         question.setText(qText);
         answer.setText(aText);
 
-        // Setup image if available
+        // Load and scale clue image if present
         String imgPath = currentQuestion.getImage();
         if (imgPath != null && !imgPath.isBlank()) {
             File imgFile = MediaResolver.resolveMediaFile(imgPath);
@@ -277,7 +295,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
                         imageLabel.setVisible(false);
                     }
                 } catch (Exception e) {
-                    System.err.println("Error loading question image: " + e.getMessage());
+                    System.err.println("QuestionMenuManager: Error loading image: " + e.getMessage());
                     imageLabel.setIcon(null);
                     imageLabel.setVisible(false);
                 }
@@ -290,7 +308,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
             imageLabel.setVisible(false);
         }
 
-        // Setup audio controls if available
+        // Configure audio controls if sound clue is present
         String audioPath = currentQuestion.getAudio();
         if (audioPath != null && !audioPath.isBlank()) {
             audioPanel.setVisible(true);
@@ -301,7 +319,6 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
             audioPanel.setVisible(false);
         }
 
-        // Setup initial buzzer state
         updateBuzzerUI();
     }
 
@@ -310,12 +327,36 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         updateBuzzerUI();
     }
 
+    /**
+     * Synchronizes the buzzer status label and control buttons with BuzzerServer state.
+     * Displays accurate game state during clue presentation and answer reveal.
+     */
     private void updateBuzzerUI() {
         if (currentQuestion == null || buzzerStatusLabel == null) return;
 
         if (!currentQuestion.isBuzzable()) {
-            buzzerStatusLabel.setText("Competitive Round - Buzzer Disabled");
-            buzzerStatusLabel.setForeground(Color.LIGHT_GRAY);
+            if (isAnswerRevealed) {
+                buzzerStatusLabel.setText("Answer Revealed");
+                buzzerStatusLabel.setForeground(Screen.JEOPARDY_YELLOW);
+            } else {
+                buzzerStatusLabel.setText("Competitive Round - Buzzer Disabled");
+                buzzerStatusLabel.setForeground(Color.LIGHT_GRAY);
+            }
+            wrongAnswerBtn.setVisible(false);
+            reopenBtn.setVisible(false);
+            return;
+        }
+
+        // When the answer is displayed, never show "Waiting for buzz..."
+        if (isAnswerRevealed) {
+            String winner = BuzzerServer.getInstance().getLastSuccessfulWinner();
+            if (winner != null && !winner.isBlank()) {
+                buzzerStatusLabel.setText("Answer Revealed | Contestant: " + winner);
+                buzzerStatusLabel.setForeground(new Color(80, 255, 80));
+            } else {
+                buzzerStatusLabel.setText("Answer Revealed - No Contestant Buzzed");
+                buzzerStatusLabel.setForeground(Screen.JEOPARDY_YELLOW);
+            }
             wrongAnswerBtn.setVisible(false);
             reopenBtn.setVisible(false);
             return;
@@ -323,21 +364,25 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
 
         String winner = BuzzerServer.getInstance().getCurrentBuzzerWinner();
         if (winner != null) {
-            buzzerStatusLabel.setText("BUZZ! " + winner.toUpperCase() + " buzzed in!");
+            buzzerStatusLabel.setText(winner + " buzzed in!");
             buzzerStatusLabel.setForeground(new Color(80, 255, 80));
             wrongAnswerBtn.setVisible(true);
             reopenBtn.setVisible(true);
-        } else {
-            buzzerStatusLabel.setText("Mobile Buzzer: READY - Waiting for buzz...");
+        } else if (BuzzerServer.getInstance().isBuzzerOpen()) {
+            buzzerStatusLabel.setText("Waiting for buzz...");
             buzzerStatusLabel.setForeground(Screen.JEOPARDY_YELLOW);
             wrongAnswerBtn.setVisible(false);
             reopenBtn.setVisible(false);
+        } else {
+            buzzerStatusLabel.setText("Buzzer Closed - Waiting for Host");
+            buzzerStatusLabel.setForeground(Color.LIGHT_GRAY);
+            wrongAnswerBtn.setVisible(false);
+            reopenBtn.setVisible(true);
         }
     }
 
-    // For setting question
     @Override
-    public void accept(IQuestion iQuestion) {
-        this.currentQuestion = iQuestion;
+    public void accept(IQuestion question) {
+        this.currentQuestion = question;
     }
 }

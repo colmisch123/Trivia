@@ -3,7 +3,10 @@ package util;
 import javax.swing.*;
 import java.awt.event.ActionListener;
 
-//JButton but stores an action
+/**
+ * An extended {@link JButton} that preserves a reference to its primary {@link ActionListener}.
+ * Widely used across the menu system for fluent, concise button initialization.
+ */
 public class JButtonListener extends JButton {
     private final ActionListener buttonAction;
 
@@ -25,10 +28,15 @@ public class JButtonListener extends JButton {
 
     public JButtonListener(String text, Icon icon, ActionListener buttonAction) {
         super(text, icon);
-        addActionListener(buttonAction);
+        if (buttonAction != null) {
+            addActionListener(buttonAction);
+        }
         this.buttonAction = buttonAction;
     }
 
+    /**
+     * Returns the {@link ActionListener} associated with this button.
+     */
     public ActionListener buttonAction() {
         return buttonAction;
     }

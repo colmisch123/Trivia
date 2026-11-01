@@ -5,83 +5,31 @@ import screen.Screen;
 import javax.swing.*;
 import java.awt.*;
 
-public class TextConfigure {
-    //Location
-    private int x = 0;
-    private int y = 0;
-
-    //Width and height of gridbox
-    private int width = 0;
-    private int height = 0;
-
-    //Spacing
-    private int north = 0;
-    private int west = 0;
-    private int south = 0;
-    private int east = 0;
-
-    //Text on label
+/**
+ * Fluent builder for creating and attaching {@link JLabel} text components
+ * to a {@link JPanel} managed by a {@link GridBagLayout}.
+ *
+ * <p>Example:
+ * <pre>{@code
+ * TextConfigure.configure()
+ *     .setText("Categories")
+ *     .setTextColor(Screen.JEOPARDY_YELLOW)
+ *     .setBackgroundColor(Screen.JEOPARDY_BLUE)
+ *     .setSize(24).setStyle(Font.BOLD)
+ *     .confirm(label, screen, panel);
+ * }</pre>
+ * </p>
+ */
+public class TextConfigure extends BaseComponentConfigure<TextConfigure> {
     private String text = "";
+    private Color textColor = Color.WHITE;
 
-    //Color of text
-    private Color textColor = new Color(255, 255, 255);
-
-    //Font
-    private String font = "Century Gothic";
-
-    //Style - EX Bold
-    private int style = Font.PLAIN;
-
-    //Size of text
-    private int size = 1;
-
-    private boolean visible = true;
-
-    //Color of Button
-    private Color backgroundColor;
-
-    public TextConfigure setX(int x) {
-        this.x = x;
-        return this;
-    }
-
-    public TextConfigure setY(int y) {
-        this.y = y;
-        return this;
-    }
-
-    public TextConfigure setWidth(int width) {
-        this.width = width;
-        return this;
-    }
-
-    public TextConfigure setHeight(int height) {
-        this.height = height;
-        return this;
-    }
-
-    public TextConfigure setNorth(int north) {
-        this.north = north;
-        return this;
-    }
-
-    public TextConfigure setWest(int west) {
-        this.west = west;
-        return this;
-    }
-
-    public TextConfigure setSouth(int south) {
-        this.south = south;
-        return this;
-    }
-
-    public TextConfigure setEast(int east) {
-        this.east = east;
-        return this;
+    public static TextConfigure configure() {
+        return new TextConfigure();
     }
 
     public TextConfigure setText(String text) {
-        this.text = text;
+        this.text = text != null ? text : "";
         return this;
     }
 
@@ -98,75 +46,35 @@ public class TextConfigure {
         return this;
     }
 
-    public TextConfigure setFont(String font) {
-        this.font = font;
-        return this;
-    }
-
-    public TextConfigure setStyle(int style) {
-        this.style = style;
-        return this;
-    }
-
-    public TextConfigure setSize(int size) {
-        this.size = size;
-        return this;
-    }
-
-    public TextConfigure setInvisible() {
-        this.visible = false;
-        return this;
-    }
-
-    public TextConfigure setBackgroundColor(int red, int green, int blue) {
-        int r = Math.min(255, Math.max(0, red));
-        int g = Math.min(255, Math.max(0, green));
-        int b = Math.min(255, Math.max(0, blue));
-
-        this.backgroundColor = new Color(r, g, b);
-
-        return this;
-    }
-
-    public TextConfigure setBackgroundColor(Color color) {
-        this.backgroundColor = color;
-        return this;
-    }
-
+    /**
+     * Applies the configuration to the label and adds it to the target panel.
+     */
     public void confirm(JLabel label, Screen screen, JPanel panel) {
         confirm(label, screen, panel, GridBagConstraints.CENTER);
     }
 
-    public void confirm(JLabel label, Screen screen, JPanel panel, int layout) {
+    public void confirm(JLabel label, Screen screen, JPanel panel, int layoutAnchor) {
         GridBagConstraints gbc = new GridBagConstraints();
-
         gbc.gridx = x;
         gbc.gridy = y;
-
         gbc.ipadx = width;
         gbc.ipady = height;
-
-        gbc.insets = new Insets(north, west, south, east);
-
-        gbc.anchor = layout;
+        gbc.insets = createInsets();
+        gbc.anchor = layoutAnchor;
 
         label.setHorizontalAlignment(SwingConstants.CENTER);
         label.setVerticalAlignment(SwingConstants.CENTER);
-
         label.setText(text);
         label.setForeground(textColor);
-        label.setFont(new Font(font, style, size));
+        label.setFont(createFont());
+
         screen.getLayout().setConstraints(label, gbc);
         panel.add(label);
         label.setVisible(visible);
 
-        if(backgroundColor != null) {
+        if (backgroundColor != null) {
             label.setOpaque(true);
             label.setBackground(backgroundColor);
         }
-    }
-
-    public static TextConfigure configure() {
-        return new TextConfigure();
     }
 }

@@ -3,7 +3,21 @@ package util;
 import java.io.File;
 import java.net.URL;
 
+/**
+ * Universal media and asset locator for images and audio files.
+ *
+ * <p>Handles cross-platform differences between IDE runs (where resources live in the filesystem
+ * under {@code src/Resource/}) and packaged deployment runs (where resources may be accessed via
+ * ClassLoader resources). Also supports fuzzy extension matching (e.g. {@code .jpeg} vs {@code .jpg}).</p>
+ */
 public class MediaResolver {
+
+    /**
+     * Attempts to find a media file on the local filesystem using multiple candidate directory roots.
+     *
+     * @param path Relative path, filename, or absolute path to the media file.
+     * @return Existing {@link File} object if resolved, or {@code null} if not found.
+     */
     public static File resolveMediaFile(String path) {
         if (path == null || path.isBlank()) {
             return null;
@@ -12,7 +26,7 @@ public class MediaResolver {
         String normalized = path.replace('\\', '/').trim();
         String fileName = new File(normalized).getName();
 
-        // Direct candidate files on disk
+        // 1. Check exact candidate paths on disk
         String[] candidatePaths = {
                 normalized,
                 "src/Resource/" + normalized,
@@ -30,7 +44,7 @@ public class MediaResolver {
             }
         }
 
-        // Fuzzy match: check if base name matches (e.g. F.jpeg -> F.jpg or m.jpg -> m.jpeg)
+        // 2. Fuzzy extension match: check if base name matches (e.g. F.jpeg -> F.jpg or m.jpg -> m.jpeg)
         String baseName = fileName.contains(".") ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
         String[] dirs = {"src/Resource/Halloween_trivia", "Resource/Halloween_trivia", "src/Resource", "Resource"};
         for (String dirPath : dirs) {
@@ -50,6 +64,12 @@ public class MediaResolver {
         return null;
     }
 
+    /**
+     * Resolves a media file to a {@link URL}, checking filesystem paths first, then classpath resources.
+     *
+     * @param path Relative path or filename.
+     * @return Accessible {@link URL} or {@code null} if not found.
+     */
     public static URL resolveMediaURL(String path) {
         File file = resolveMediaFile(path);
         if (file != null) {

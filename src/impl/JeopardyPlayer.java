@@ -2,12 +2,15 @@ package impl;
 
 import intr.IPlayer;
 
+/**
+ * Represents an individual contestant in the Jeopardy game, tracking their display name and running score.
+ */
 public class JeopardyPlayer implements IPlayer {
     private final String name;
     private int score = 0;
 
     public JeopardyPlayer(String name) {
-        this.name = name;
+        this.name = name != null ? name.trim() : "Player";
     }
 
     @Override

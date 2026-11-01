@@ -1,8 +1,10 @@
 package intr;
 
+/**
+ * Interface contract for a contestant player.
+ */
 public interface IPlayer {
     String getNames();
-
     int getScore();
     void setScore(int amount);
 

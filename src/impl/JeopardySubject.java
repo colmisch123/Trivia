@@ -6,18 +6,21 @@ import intr.ISubject;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Represents a Jeopardy board category containing a title and an ordered list of questions.
+ */
 public class JeopardySubject implements ISubject {
     private String title;
     private List<IQuestion> questions;
 
     public JeopardySubject(String title) {
-        this.title = title;
-        questions = new ArrayList<>();
+        this.title = title != null ? title.trim() : "Untitled";
+        this.questions = new ArrayList<>();
     }
 
     public JeopardySubject(String title, List<IQuestion> questions) {
-        this.title = title;
-        this.questions = questions;
+        this.title = title != null ? title.trim() : "Untitled";
+        this.questions = questions != null ? questions : new ArrayList<>();
     }
 
     @Override
@@ -42,11 +45,6 @@ public class JeopardySubject implements ISubject {
 
     @Override
     public String toString() {
-        StringBuilder toReturn = new StringBuilder(title);
-        for(IQuestion q : questions) {
-            toReturn.append(": ").append("Question: ").append(q.getQuestion()).append(" ").append("Answer: ").append(q.getAnswer());
-        }
-
-        return toReturn.toString();
+        return title + " (" + questions.size() + " questions)";
     }
 }

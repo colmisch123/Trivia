@@ -5,83 +5,31 @@ import screen.Screen;
 import javax.swing.*;
 import java.awt.*;
 
-//Quick way to build buttons
-public class ButtonConfigure {
-    //Location
-    private int x = 0;
-    private int y = 0;
-
-    //Size of button
-    private int width = 0;
-    private int height = 0;
-
-    //Spacing
-    private int north = 0;
-    private int west = 0;
-    private int south = 0;
-    private int east = 0;
-
-    //Color of Button
-    private Color backgroundColor;
+/**
+ * Fluent builder for creating and attaching {@link JButton} components
+ * to a {@link JPanel} managed by a {@link GridBagLayout}.
+ *
+ * <p>Example:
+ * <pre>{@code
+ * ButtonConfigure.configure()
+ *     .setX(0).setY(1)
+ *     .setWidth(100).setHeight(30)
+ *     .setBackgroundColor(Screen.JEOPARDY_BLUE)
+ *     .setForegroundColor(Screen.JEOPARDY_YELLOW)
+ *     .finish(button, screen, panel);
+ * }</pre>
+ * </p>
+ */
+public class ButtonConfigure extends BaseComponentConfigure<ButtonConfigure> {
     private Color foregroundColor;
-
-    //Text on button
     private String text;
 
-    boolean visible = true;
-
-    public ButtonConfigure setX(int x) {
-        this.x = x;
-        return this;
+    public static ButtonConfigure configure() {
+        return new ButtonConfigure();
     }
 
-    public ButtonConfigure setY(int y) {
-        this.y = y;
-        return this;
-    }
-
-    public ButtonConfigure setWidth(int width) {
-        this.width = width;
-        return this;
-    }
-
-    public ButtonConfigure setHeight(int height) {
-        this.height = height;
-        return this;
-    }
-
-    public ButtonConfigure setNorth(int north) {
-        this.north = north;
-        return this;
-    }
-
-    public ButtonConfigure setWest(int west) {
-        this.west = west;
-        return this;
-    }
-
-    public ButtonConfigure setSouth(int south) {
-        this.south = south;
-        return this;
-    }
-
-    public ButtonConfigure setEast(int east) {
-        this.east = east;
-        return this;
-    }
-
-    public ButtonConfigure setInvisible() {
-        this.visible = true;
-        return this;
-    }
-
-    public ButtonConfigure setBackgroundColor(int red, int green, int blue) {
-        int r = Math.min(255, Math.max(0, red));
-        int g = Math.min(255, Math.max(0, green));
-        int b = Math.min(255, Math.max(0, blue));
-
-        this.backgroundColor = new Color(r, g, b);
-
+    public ButtonConfigure setForegroundColor(Color color) {
+        this.foregroundColor = color;
         return this;
     }
 
@@ -89,19 +37,7 @@ public class ButtonConfigure {
         int r = Math.min(255, Math.max(0, red));
         int g = Math.min(255, Math.max(0, green));
         int b = Math.min(255, Math.max(0, blue));
-
         this.foregroundColor = new Color(r, g, b);
-
-        return this;
-    }
-
-    public ButtonConfigure setBackgroundColor(Color color) {
-        this.backgroundColor = color;
-        return this;
-    }
-
-    public ButtonConfigure setForegroundColor(Color color) {
-        this.foregroundColor = color;
         return this;
     }
 
@@ -110,8 +46,11 @@ public class ButtonConfigure {
         return this;
     }
 
+    /**
+     * Finishes configuring the button and adds it to the target panel with GridBagConstraints.
+     */
     public void finish(JButton button, Screen screen, JPanel panel) {
-        finish(button, panel, screen.getLayout());
+        finish(button, panel, screen.getLayout(), GridBagConstraints.CENTER);
     }
 
     public void finish(JButton button, Screen screen, JPanel panel, int gridBagAlignment) {
@@ -124,33 +63,25 @@ public class ButtonConfigure {
 
     public void finish(JButton button, JPanel panel, GridBagLayout layout, int gridBagAlignment) {
         GridBagConstraints gbc = new GridBagConstraints();
-
         gbc.gridx = x;
         gbc.gridy = y;
-
         gbc.ipadx = width;
         gbc.ipady = height;
-
-        gbc.insets = new Insets(north, west, south, east);
-
+        gbc.insets = createInsets();
         gbc.anchor = gridBagAlignment;
 
         layout.setConstraints(button, gbc);
         panel.add(button);
         button.setVisible(visible);
 
-        if(backgroundColor != null) {
+        if (backgroundColor != null) {
             button.setBackground(backgroundColor);
         }
-        if(foregroundColor != null) {
+        if (foregroundColor != null) {
             button.setForeground(foregroundColor);
         }
-        if(text != null) {
+        if (text != null) {
             button.setText(text);
         }
-    }
-
-    public static ButtonConfigure configure() {
-        return new ButtonConfigure();
     }
 }

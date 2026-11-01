@@ -1,15 +1,29 @@
 package menu;
 
 import intr.IBackgroundForeground;
-import intr.IDrawable;
 import intr.ITickable;
 import screen.Screen;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
 
+/**
+ * Abstract base class for all game screen menus.
+ *
+ * <p>Each menu consists of a {@link JLayeredPane} with:
+ * <ul>
+ *   <li><b>DEFAULT_LAYER</b>: Full-screen background image (via {@link #addBackground()})</li>
+ *   <li><b>PALETTE_LAYER</b>: Foreground content panel (via {@link #addForeground()})</li>
+ * </ul>
+ * Also integrates lifecycle callbacks:
+ * <ul>
+ *   <li>{@link #onSetActive()}: Executed when the screen becomes active in the window</li>
+ *   <li>{@link #onRemove()}: Executed when navigating away to another screen</li>
+ *   <li>{@link #onReset()}: Restores initial default state</li>
+ *   <li>{@link #tick()}: Invoked on each frame of the 60 FPS game loop</li>
+ * </ul>
+ * </p>
+ */
 public abstract class AbstractMenu implements IBackgroundForeground, ITickable {
     protected JLayeredPane pane;
     protected JPanel background;
@@ -50,13 +64,18 @@ public abstract class AbstractMenu implements IBackgroundForeground, ITickable {
         this.foreground.setLayout(screen.getLayout());
     }
 
-    //Meant to be overrided.
+    /**
+     * Hook for subclasses requiring initialization before pane setup.
+     */
     protected void priorityInit() {}
 
     public JLayeredPane getPane() {
         return this.pane;
     }
 
+    /**
+     * Called by the main loop to synchronize dimensions and trigger frame tick logic.
+     */
     public void update() {
         this.width = screen.getWidth();
         this.height = screen.getHeight();
@@ -67,14 +86,18 @@ public abstract class AbstractMenu implements IBackgroundForeground, ITickable {
         tick();
     }
 
-    //Gets called when the Screen has this menu active
-    //Meant to be overrided
+    /**
+     * Invoked when this menu becomes the active content pane.
+     */
     public void onSetActive() {}
 
-    //Gets called when the Screen isn't active pane anymore
-    //Meant to be overrided
+    /**
+     * Invoked when this menu is being replaced by another screen.
+     */
     public void onRemove() {}
 
-    //Called when everything should be reset to init state
+    /**
+     * Resets this menu to its initial state.
+     */
     public abstract void onReset();
 }

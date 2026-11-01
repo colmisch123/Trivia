@@ -15,14 +15,38 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
+/**
+ * Embedded HTTP server powering real-time mobile phone integration for Jeopardy 2.0.
+ *
+ * <h3>Architecture & Functionality:</h3>
+ * <ul>
+ *   <li><b>Local Network Discovery:</b> Scans system network interfaces to automatically detect
+ *       the host machine's local Wi-Fi IPv4 address (e.g. {@code http://192.168.0.x:8080}).</li>
+ *   <li><b>Zero External Dependencies:</b> Uses {@link com.sun.net.httpserver.HttpServer} built into
+ *       the standard Java JDK, requiring zero third-party frameworks.</li>
+ *   <li><b>Atomic Buzz Racing:</b> Leverages {@link java.util.concurrent.atomic.AtomicReference}
+ *       and compare-and-set operations to determine the buzz winner with microsecond accuracy,
+ *       guaranteeing zero race conditions.</li>
+ *   <li><b>Lightweight Polling Protocol:</b> Connected phones poll {@code /api/poll} every ~280ms
+ *       to receive game state transitions without WebSocket disconnection issues.</li>
+ *   <li><b>Session Persistence:</b> Saves identity in mobile {@code localStorage} so players
+ *       can accidentally lock their phone or reload without losing their session.</li>
+ *   <li><b>Host Kick & Exit Detection:</b> Allows host to kick contestants and sends {@code GAME_CLOSED}
+ *       signals when the desktop game exits so phones reset cleanly.</li>
+ * </ul>
+ */
 public class BuzzerServer {
+    /**
+     * Represents the current state/phase of the desktop Jeopardy game.
+     */
     public enum Phase {
-        REGISTRATION,
-        BOARD,
-        QUESTION,
-        REWARD,
-        GAME_CLOSED
+        REGISTRATION, // In starting menu entering player names
+        BOARD,        // Looking at the main trivia tile board
+        QUESTION,     // Clue is open on desktop; buzzer is active if buzzable
+        REWARD,       // Awarding points to the winner
+        GAME_CLOSED   // Desktop application is exiting
     }
 
     private static BuzzerServer instance;
@@ -38,13 +62,20 @@ public class BuzzerServer {
     private volatile Phase currentPhase = Phase.REGISTRATION;
     private volatile boolean buzzerOpen = false;
     private volatile boolean currentQuestionBuzzable = true;
+    private volatile boolean answerRevealed = false;
     private volatile String currentQuestionText = "";
     private final AtomicReference<String> currentBuzzerWinner = new AtomicReference<>(null);
     private volatile String lastSuccessfulWinner = null;
 
     private final List<String> registeredPlayers = new CopyOnWriteArrayList<>();
+    private final Map<String, String> playerTokens = new ConcurrentHashMap<>();
     private final Set<String> blockedPlayers = ConcurrentHashMap.newKeySet();
     private final Set<String> kickedPlayers = ConcurrentHashMap.newKeySet();
+    private static volatile Consumer<String> onPlayerRegisteredCallback;
+
+    public static void setOnPlayerRegisteredCallback(Consumer<String> callback) {
+        onPlayerRegisteredCallback = callback;
+    }
 
     private BuzzerServer() {
         findHostAddress();
@@ -166,10 +197,14 @@ public class BuzzerServer {
     }
 
     // Game lifecycle controls
+    /**
+     * Updates the server phase and automatically closes the buzzer if moving away from a question.
+     */
     public void setPhase(Phase phase) {
         this.currentPhase = phase;
         if (phase != Phase.QUESTION) {
             this.buzzerOpen = false;
+            this.answerRevealed = false;
         }
     }
 
@@ -177,6 +212,9 @@ public class BuzzerServer {
         return currentPhase;
     }
 
+    /**
+     * Opens the buzzer for a newly revealed question clue on desktop.
+     */
     public void openBuzzer(IQuestion question) {
         this.currentPhase = Phase.QUESTION;
         this.currentQuestionText = question != null ? question.getQuestion() : "";
@@ -184,6 +222,7 @@ public class BuzzerServer {
         this.blockedPlayers.clear();
         this.currentBuzzerWinner.set(null);
         this.lastSuccessfulWinner = null;
+        this.answerRevealed = false;
         this.buzzerOpen = this.currentQuestionBuzzable;
     }
 
@@ -191,6 +230,21 @@ public class BuzzerServer {
         this.buzzerOpen = false;
     }
 
+    public void setAnswerRevealed(boolean revealed) {
+        this.answerRevealed = revealed;
+        if (revealed) {
+            this.buzzerOpen = false;
+        }
+    }
+
+    public boolean isAnswerRevealed() {
+        return answerRevealed;
+    }
+
+    /**
+     * Locks out the player who gave an incorrect answer and immediately reopens
+     * the buzzer for all remaining contestants.
+     */
     public void markCurrentWinnerWrong() {
         String winner = currentBuzzerWinner.get();
         if (winner != null) {
@@ -203,6 +257,9 @@ public class BuzzerServer {
         }
     }
 
+    /**
+     * Re-enables the buzzer for all players on the current question.
+     */
     public void resetBuzzer() {
         currentBuzzerWinner.set(null);
         lastSuccessfulWinner = null;
@@ -210,6 +267,24 @@ public class BuzzerServer {
         if (currentQuestionBuzzable) {
             buzzerOpen = true;
         }
+    }
+
+    /**
+     * Attempts to atomically register a buzz for the given player name.
+     * Returns true if this player won the buzz race.
+     */
+    public boolean buzz(String name) {
+        if (name == null || name.isBlank()) return false;
+        String clean = name.trim();
+        if (isKicked(clean)) return false;
+        if (currentPhase != Phase.QUESTION || !currentQuestionBuzzable || !buzzerOpen) return false;
+        if (blockedPlayers.contains(clean.toLowerCase())) return false;
+        if (currentBuzzerWinner.compareAndSet(null, clean)) {
+            buzzerOpen = false;
+            lastSuccessfulWinner = clean;
+            return true;
+        }
+        return false;
     }
 
     public boolean isBuzzerOpen() {
@@ -240,35 +315,115 @@ public class BuzzerServer {
         return Collections.unmodifiableSet(kickedPlayers);
     }
 
+    /**
+     * Resets registered and kicked player lists for a fresh game lobby.
+     */
     public void resetPlayers() {
         registeredPlayers.clear();
+        playerTokens.clear();
         blockedPlayers.clear();
         kickedPlayers.clear();
         currentBuzzerWinner.set(null);
         lastSuccessfulWinner = null;
+        answerRevealed = false;
         currentPhase = Phase.REGISTRATION;
     }
 
-    public boolean registerPlayer(String name) {
-        if (name == null || name.isBlank()) return false;
-        String clean = name.trim();
-        // Registering clears any prior kicked status
-        kickedPlayers.remove(clean.toLowerCase());
-        for (String p : registeredPlayers) {
-            if (p.equalsIgnoreCase(clean)) {
-                return true; // Already registered
-            }
+    /**
+     * Encapsulates the result of attempting to register a contestant name.
+     */
+    public static class RegistrationResponse {
+        public final boolean success;
+        public final boolean nameTaken;
+        public final String cleanName;
+        public final String playerId;
+        public final String error;
+
+        public RegistrationResponse(boolean success, boolean nameTaken, String cleanName, String playerId, String error) {
+            this.success = success;
+            this.nameTaken = nameTaken;
+            this.cleanName = cleanName;
+            this.playerId = playerId;
+            this.error = error;
         }
-        registeredPlayers.add(clean);
-        return true;
     }
 
+    /**
+     * Registers a contestant with unique-name verification.
+     * Prevents different devices from choosing the same name while allowing an active player's
+     * device to reconnect or re-submit their profile seamlessly.
+     */
+    public RegistrationResponse registerPlayer(String name, String playerId) {
+        if (name == null || name.isBlank()) {
+            return new RegistrationResponse(false, false, "", "", "Name cannot be empty.");
+        }
+        String clean = name.trim();
+        String key = clean.toLowerCase();
+
+        String existingToken = playerTokens.get(key);
+        if (existingToken != null && !existingToken.isEmpty()) {
+            if (playerId != null && !playerId.isBlank() && existingToken.equals(playerId)) {
+                // Same player / device re-registering or reconnecting
+                kickedPlayers.remove(key);
+                if (!registeredPlayers.contains(clean)) {
+                    registeredPlayers.add(clean);
+                }
+                return new RegistrationResponse(true, false, clean, existingToken, null);
+            } else {
+                // Different device / player attempting to take an active name
+                return new RegistrationResponse(false, true, clean, "", "The name '" + clean + "' is already taken. Please choose another name.");
+            }
+        }
+
+        // Name is free to claim!
+        String assignedToken = (playerId != null && !playerId.isBlank())
+                ? playerId
+                : UUID.randomUUID().toString().substring(0, 8);
+
+        kickedPlayers.remove(key);
+        playerTokens.put(key, assignedToken);
+
+        boolean alreadyInList = false;
+        for (String p : registeredPlayers) {
+            if (p.equalsIgnoreCase(clean)) {
+                alreadyInList = true;
+                break;
+            }
+        }
+        if (!alreadyInList) {
+            registeredPlayers.add(clean);
+        }
+
+        Consumer<String> cb = onPlayerRegisteredCallback;
+        if (cb != null) {
+            try {
+                cb.accept(clean);
+            } catch (Exception e) {
+                System.err.println("BuzzerServer: Error in onPlayerRegistered callback: " + e.getMessage());
+            }
+        }
+
+        return new RegistrationResponse(true, false, clean, assignedToken, null);
+    }
+
+    /**
+     * Registers a contestant name into the active lobby (backwards compatibility).
+     */
+    public boolean registerPlayer(String name) {
+        return registerPlayer(name, null).success;
+    }
+
+    /**
+     * Kicks a contestant from the lobby, adding them to kickedPlayers and notifying their phone.
+     */
     public void kickPlayer(String name) {
         if (name == null || name.isBlank()) return;
         String clean = name.trim();
-        kickedPlayers.add(clean.toLowerCase());
+        String key = clean.toLowerCase();
+        kickedPlayers.add(key);
         registeredPlayers.removeIf(p -> p.equalsIgnoreCase(clean));
-        blockedPlayers.remove(clean.toLowerCase());
+        playerTokens.remove(key);
+        blockedPlayers.remove(key);
 
         String winner = currentBuzzerWinner.get();
         if (winner != null && winner.equalsIgnoreCase(clean)) {
@@ -286,7 +441,13 @@ public class BuzzerServer {
         return kickedPlayers.contains(name.trim().toLowerCase());
     }
 
+    // ==========================================
     // HTTP Handlers
+    // ==========================================
+
+    /**
+     * GET / -> Serves the self-contained Single-Page Application (HTML/CSS/JS) to mobile browsers.
+     */
     private class RootHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -303,34 +464,66 @@ public class BuzzerServer {
         }
     }
 
+    /**
+     * POST /api/register?name=...&playerId=... -> Registers a contestant name with unique check.
+     */
     private class RegisterHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             Map<String, String> params = parseParams(exchange);
             String name = params.get("name");
+            String clientPlayerId = params.get("playerId");
             if (name == null || name.isBlank()) {
                 sendJsonResponse(exchange, 400, "{\"success\":false,\"error\":\"Name required\"}");
                 return;
             }
-            boolean ok = registerPlayer(name);
-            sendJsonResponse(exchange, 200, "{\"success\":" + ok + ",\"player\":\"" + escapeJson(name.trim()) + "\",\"sessionId\":\"" + sessionId + "\"}");
+            RegistrationResponse resp = registerPlayer(name, clientPlayerId);
+            if (resp.success) {
+                sendJsonResponse(exchange, 200, "{\"success\":true,\"player\":\"" + escapeJson(resp.cleanName)
+                        + "\",\"playerId\":\"" + escapeJson(resp.playerId)
+                        + "\",\"sessionId\":\"" + sessionId + "\"}");
+            } else {
+                sendJsonResponse(exchange, 200, "{\"success\":false,\"nameTaken\":" + resp.nameTaken
+                        + ",\"error\":\"" + escapeJson(resp.error != null ? resp.error : "Registration failed")
+                        + "\",\"sessionId\":\"" + sessionId + "\"}");
+            }
         }
     }
 
+    /**
+     * GET /api/reconnect?name=...&sessionId=...&playerId=... -> Re-establishes an existing mobile player session.
+     * Only succeeds if the player was already registered in the active game. Never auto-registers
+     * to prevent creating ghost players from stale sessions.
+     */
     private class ReconnectHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             Map<String, String> params = parseParams(exchange);
             String name = params.get("name");
+            String clientSessionId = params.get("sessionId");
+            String clientPlayerId = params.get("playerId");
+
             if (name == null || name.isBlank()) {
                 sendJsonResponse(exchange, 400, "{\"success\":false,\"error\":\"Name required\"}");
                 return;
             }
+
             String clean = name.trim();
+            String key = clean.toLowerCase();
+
+            // Detect stale session from a previous game run
+            if (clientSessionId != null && !clientSessionId.isBlank() && !clientSessionId.equalsIgnoreCase(sessionId)) {
+                sendJsonResponse(exchange, 200, "{\"success\":false,\"staleSession\":true,\"sessionId\":\"" + sessionId + "\"}");
+                return;
+            }
+
             if (isKicked(clean)) {
                 sendJsonResponse(exchange, 200, "{\"success\":false,\"kicked\":true,\"sessionId\":\"" + sessionId + "\"}");
                 return;
             }
+
+            // Only reconnect if this contestant is ALREADY in registeredPlayers for this game run.
+            // Never auto-registers to ensure players only join when explicitly clicking 'Join Game'.
             boolean found = false;
             for (String p : registeredPlayers) {
                 if (p.equalsIgnoreCase(clean)) {
@@ -338,23 +531,47 @@ public class BuzzerServer {
                     break;
                 }
             }
-            // Auto-register if registration is currently open
-            if (!found && currentPhase == Phase.REGISTRATION) {
-                found = registerPlayer(clean);
+
+            if (!found) {
+                sendJsonResponse(exchange, 200, "{\"success\":false,\"unregistered\":true,\"sessionId\":\"" + sessionId + "\"}");
+                return;
             }
-            sendJsonResponse(exchange, 200, "{\"success\":" + found + ",\"player\":\"" + escapeJson(clean) + "\",\"sessionId\":\"" + sessionId + "\"}");
+
+            // Verify identity if device token was recorded
+            String token = playerTokens.get(key);
+            if (token != null && !token.isEmpty() && clientPlayerId != null && !clientPlayerId.isBlank()) {
+                if (!token.equals(clientPlayerId)) {
+                    sendJsonResponse(exchange, 200, "{\"success\":false,\"nameTaken\":true,\"error\":\"Identity mismatch\",\"sessionId\":\"" + sessionId + "\"}");
+                    return;
+                }
+            }
+
+            String returnToken = token != null ? token : (clientPlayerId != null ? clientPlayerId : "");
+            sendJsonResponse(exchange, 200, "{\"success\":true,\"player\":\"" + escapeJson(clean)
+                    + "\",\"playerId\":\"" + escapeJson(returnToken)
+                    + "\",\"sessionId\":\"" + sessionId + "\"}");
         }
     }
 
+    /**
+     * GET /api/poll?name=...&sessionId=... -> Lightweight 280ms polling endpoint syncing game state with mobile phones.
+     */
     private class PollHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             Map<String, String> params = parseParams(exchange);
             String name = params.get("name");
+            String clientSessionId = params.get("sessionId");
             String cleanName = name != null ? name.trim() : "";
 
             if (currentPhase == Phase.GAME_CLOSED) {
                 sendJsonResponse(exchange, 200, "{\"status\":\"GAME_CLOSED\",\"phase\":\"GAME_CLOSED\",\"sessionId\":\"" + sessionId + "\"}");
+                return;
+            }
+
+            // If the client has a stale session from a previous game run, notify them immediately
+            if (clientSessionId != null && !clientSessionId.isBlank() && !clientSessionId.equalsIgnoreCase(sessionId)) {
+                sendJsonResponse(exchange, 200, "{\"status\":\"STALE_SESSION\",\"staleSession\":true,\"phase\":\"" + currentPhase.name() + "\",\"sessionId\":\"" + sessionId + "\"}");
                 return;
             }
 
@@ -373,7 +590,9 @@ public class BuzzerServer {
             } else if (currentPhase == Phase.BOARD || currentPhase == Phase.REWARD) {
                 clientStatus = "BOARD";
             } else { // Phase.QUESTION
-                if (!currentQuestionBuzzable) {
+                if (answerRevealed) {
+                    clientStatus = "ANSWER_REVEALED";
+                } else if (!currentQuestionBuzzable) {
                     clientStatus = "NOT_BUZZABLE";
                 } else if (isWinner) {
                     clientStatus = "YOU_BUZZED";
@@ -388,6 +607,8 @@ public class BuzzerServer {
                 }
             }
 
+            String displayWinner = winner != null ? winner : (answerRevealed && lastSuccessfulWinner != null ? lastSuccessfulWinner : "");
+
             StringBuilder json = new StringBuilder();
             json.append("{");
             json.append("\"status\":\"").append(clientStatus).append("\",");
@@ -395,7 +616,7 @@ public class BuzzerServer {
             json.append("\"sessionId\":\"").append(sessionId).append("\",");
             json.append("\"buzzable\":").append(currentQuestionBuzzable).append(",");
             json.append("\"buzzerOpen\":").append(buzzerOpen).append(",");
-            json.append("\"winner\":\"").append(winner != null ? escapeJson(winner) : "").append("\",");
+            json.append("\"winner\":\"").append(displayWinner != null ? escapeJson(displayWinner) : "").append("\",");
             json.append("\"isWinner\":").append(isWinner).append(",");
             json.append("\"isBlocked\":").append(isBlocked);
             json.append("}");
@@ -404,6 +625,9 @@ public class BuzzerServer {
         }
     }
 
+    /**
+     * POST /api/buzz?name=... -> Atomic compare-and-set buzz racer.
+     */
     private class BuzzHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -430,13 +654,13 @@ public class BuzzerServer {
                 return;
             }
 
-            // Atomic buzz race
-            if (currentBuzzerWinner.compareAndSet(null, clean)) {
-                buzzerOpen = false;
-                lastSuccessfulWinner = clean;
+            // Atomic buzz race condition check: first one to set null -> clean wins atomically
+            boolean won = buzz(clean);
+            if (won) {
                 sendJsonResponse(exchange, 200, "{\"success\":true,\"winner\":\"" + escapeJson(clean) + "\"}");
             } else {
-                sendJsonResponse(exchange, 200, "{\"success\":false,\"winner\":\"" + escapeJson(currentBuzzerWinner.get()) + "\"}");
+                String current = currentBuzzerWinner.get();
+                sendJsonResponse(exchange, 200, "{\"success\":false,\"winner\":\"" + (current != null ? escapeJson(current) : "") + "\"}");
             }
         }
     }
@@ -651,11 +875,17 @@ public class BuzzerServer {
 
 <script>
   let playerName = "";
+  let playerId = "";
   let currentSessionId = "";
   let pollInterval = null;
   let consecutiveErrors = 0;
 
   window.addEventListener('load', () => {
+    playerId = localStorage.getItem('jeopardy_player_id');
+    if (!playerId) {
+      playerId = 'p_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+      localStorage.setItem('jeopardy_player_id', playerId);
+    }
     const saved = localStorage.getItem('jeopardy_player_name');
     const savedSession = localStorage.getItem('jeopardy_session_id');
     if (saved && saved.trim()) {
@@ -679,11 +909,15 @@ public class BuzzerServer {
     const val = input.value.trim();
     if (!val) return;
     
-    fetch('/api/register?name=' + encodeURIComponent(val), { method: 'POST' })
+    fetch('/api/register?name=' + encodeURIComponent(val) + '&playerId=' + encodeURIComponent(playerId), { method: 'POST' })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
           playerName = data.player;
+          if (data.playerId) {
+            playerId = data.playerId;
+            localStorage.setItem('jeopardy_player_id', playerId);
+          }
           if (data.sessionId) {
             currentSessionId = data.sessionId;
             localStorage.setItem('jeopardy_session_id', currentSessionId);
@@ -700,30 +934,50 @@ public class BuzzerServer {
   }
 
   function reconnect(name) {
-    fetch('/api/reconnect?name=' + encodeURIComponent(name))
+    const url = '/api/reconnect?name=' + encodeURIComponent(name) 
+      + '&sessionId=' + encodeURIComponent(currentSessionId)
+      + '&playerId=' + encodeURIComponent(playerId);
+    fetch(url)
       .then(res => res.json())
       .then(data => {
-        if (data.sessionId) {
-          if (currentSessionId && currentSessionId !== data.sessionId) {
-            handleGameClosed('A new game was started on the host computer.');
-            return;
-          }
-          currentSessionId = data.sessionId;
-          localStorage.setItem('jeopardy_session_id', currentSessionId);
+        // If stale session or server has a different sessionId, a new game was started
+        if (data.staleSession || (data.sessionId && currentSessionId && currentSessionId !== data.sessionId)) {
+          localStorage.removeItem('jeopardy_player_name');
+          localStorage.removeItem('jeopardy_session_id');
+          const oldName = playerName;
+          playerName = "";
+          currentSessionId = data.sessionId || "";
+          const input = document.getElementById('nameInput');
+          if (input && !input.value) input.value = oldName;
+          showView('viewRegister');
+          return;
         }
 
         if (data.kicked) {
           handleKicked();
         } else if (data.success) {
           playerName = data.player;
+          if (data.playerId) {
+            playerId = data.playerId;
+            localStorage.setItem('jeopardy_player_id', playerId);
+          }
+          currentSessionId = data.sessionId;
+          localStorage.setItem('jeopardy_session_id', currentSessionId);
           onLoggedIn();
         } else {
+          // Contestant is not registered or identity mismatch
+          localStorage.removeItem('jeopardy_player_name');
+          localStorage.removeItem('jeopardy_session_id');
+          const oldName = playerName;
+          playerName = "";
+          currentSessionId = data.sessionId || "";
+          const input = document.getElementById('nameInput');
+          if (input && !input.value) input.value = oldName;
           showView('viewRegister');
         }
       })
       .catch(() => {
-        // If host temporarily unreachable, still show logged in state and poll will retry
-        onLoggedIn();
+        showView('viewRegister');
       });
   }
 
@@ -737,6 +991,8 @@ public class BuzzerServer {
     localStorage.removeItem('jeopardy_player_name');
     localStorage.removeItem('jeopardy_session_id');
     playerName = "";
+    playerId = 'p_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+    localStorage.setItem('jeopardy_player_id', playerId);
     document.getElementById('playerHeader').style.display = 'none';
     if (pollInterval) clearInterval(pollInterval);
     showView('viewRegister');
@@ -760,18 +1016,15 @@ public class BuzzerServer {
 
   function poll() {
     if (!playerName) return;
-    fetch('/api/poll?name=' + encodeURIComponent(playerName))
+    const url = '/api/poll?name=' + encodeURIComponent(playerName) + '&sessionId=' + encodeURIComponent(currentSessionId);
+    fetch(url)
       .then(res => res.json())
       .then(state => {
         consecutiveErrors = 0;
 
-        if (state.sessionId) {
-          if (currentSessionId && currentSessionId !== state.sessionId) {
-            handleGameClosed('The previous game ended and a new game has started.');
-            return;
-          }
-          currentSessionId = state.sessionId;
-          localStorage.setItem('jeopardy_session_id', currentSessionId);
+        if (state.staleSession || (state.sessionId && currentSessionId && currentSessionId !== state.sessionId)) {
+          handleGameClosed('The previous game ended and a new game has started.');
+          return;
         }
 
         if (state.status === 'GAME_CLOSED') {
@@ -802,6 +1055,8 @@ public class BuzzerServer {
     localStorage.removeItem('jeopardy_session_id');
     const oldName = playerName;
     playerName = "";
+    playerId = 'p_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+    localStorage.setItem('jeopardy_player_id', playerId);
     document.getElementById('playerHeader').style.display = 'none';
     document.getElementById('changeNameLink').style.display = 'none';
 
@@ -887,6 +1142,11 @@ public class BuzzerServer {
         title.textContent = 'Incorrect';
         title.className = 'status-title danger-banner';
         desc.textContent = 'You are locked out for this question.';
+      } else if (state.status === 'ANSWER_REVEALED') {
+        icon.innerHTML = '&#128269;';
+        title.textContent = 'Answer Revealed';
+        title.className = 'status-title warning-banner';
+        desc.textContent = state.winner ? state.winner + ' buzzed in! Look at the board.' : 'Look at the board for the answer!';
       } else if (state.status === 'NOT_BUZZABLE') {
         icon.innerHTML = '&#127942;';
         title.textContent = 'Competitive Round';

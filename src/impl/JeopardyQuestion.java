@@ -2,6 +2,20 @@ package impl;
 
 import intr.IQuestion;
 
+/**
+ * Immutable data model representing a single Jeopardy question clue.
+ *
+ * <p>Supports:
+ * <ul>
+ *   <li>Question clue text and correct answer text</li>
+ *   <li>Base point value (e.g. 100, 200, or negative for special penalty tiles)</li>
+ *   <li>Optional visual clue image path/filename (e.g. {@code r.jpg})</li>
+ *   <li>Optional audio clip path/filename (e.g. {@code burp.mp3})</li>
+ *   <li>Optional tile label override (e.g. "DO NOT CHOOSE THIS TILE")</li>
+ *   <li>{@code buzzable} flag indicating whether mobile buzzing is enabled (defaults to {@code true}; {@code false} for competitive rounds)</li>
+ * </ul>
+ * </p>
+ */
 public class JeopardyQuestion implements IQuestion {
     private final String question;
     private final String answer;

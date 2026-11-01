@@ -17,8 +17,26 @@ import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+/**
+ * Player Registration and Lobby screen.
+ *
+ * <p>Major functionalities:
+ * <ul>
+ *   <li>Displays a prominent banner with the local Wi-Fi IP URL for mobile registration</li>
+ *   <li>Starts with 1 player slot visible in the lobby by default</li>
+ *   <li>Continuously polls {@link BuzzerServer#getRegisteredPlayers()} in {@link #tick()} at 60 FPS,
+ *       automatically populating text fields and expanding slots as mobile contestants connect</li>
+ *   <li>Provides a large, hoverable red "X" button next to each contestant that kicks the player
+ *       from the lobby, informs their phone immediately, and shifts remaining slots up cleanly</li>
+ *   <li>Allows adding and removing slots manually or resetting the lobby</li>
+ *   <li>Populates {@link Screen#getJeopardyBoard()} with confirmed contestants before launching the board</li>
+ * </ul>
+ * </p>
+ */
 public class PlayerMenuManager extends AbstractMenu {
     private static final int MAX_PLAYERS = 15;
     private static final int MAX_PER_ROW = 5;
@@ -134,29 +152,32 @@ public class PlayerMenuManager extends AbstractMenu {
         return new JPanel();
     }
 
+    /**
+     * Removes the contestant at the specified index, notifies BuzzerServer, and compacts the list.
+     */
     private void kickPlayerAt(int index) {
         if (index < 0 || index >= amountVisible) return;
 
         JTextField tf = textFields.get(index);
         String playerName = tf.getText().trim();
 
-        // Kick from buzzer server if registered
+        // Inform server so mobile client receives the KICKED state
         if (!playerName.isBlank() && !playerName.matches("^Player\\s+\\d+$")) {
             BuzzerServer.getInstance().kickPlayer(playerName);
         }
 
         if (amountVisible <= 1) {
-            // Only 1 player visible: reset this slot to default name
+            // If only 1 slot remains, reset its text back to placeholder
             tf.setText("Player 1");
             return;
         }
 
-        // Shift all subsequent visible player names up by 1
+        // Shift remaining player names up by 1 slot
         for (int i = index; i < amountVisible - 1; i++) {
             textFields.get(i).setText(textFields.get(i + 1).getText());
         }
 
-        // Clear and hide the last visible slot
+        // Clear and hide the vacated slot at the end
         int lastIndex = amountVisible - 1;
         textFields.get(lastIndex).setText("Player " + (lastIndex + 1));
         slotContainers.get(lastIndex).setVisible(false);
@@ -167,7 +188,28 @@ public class PlayerMenuManager extends AbstractMenu {
         foreground.repaint();
     }
 
+    /**
+     * Confirms all active player names, sets up the board, and advances to the Board screen.
+     */
     private void confirmPlayers(ActionEvent e) {
+        // Validate that visible player names are unique
+        Set<String> seen = new HashSet<>();
+        for (int i = 0; i < amountVisible; i++) {
+            JTextField text = textFields.get(i);
+            if (text.isVisible() && !text.getText().isBlank()) {
+                String pName = text.getText().trim();
+                if (!seen.add(pName.toLowerCase())) {
+                    JOptionPane.showMessageDialog(
+                            screen,
+                            "Duplicate contestant name found: \"" + pName + "\".\nEach player must have a unique name.",
+                            "Duplicate Name Error",
+                            JOptionPane.WARNING_MESSAGE
+                    );
+                    return;
+                }
+            }
+        }
+
         IBoard<ISubject> jeopardyBoard = screen.getJeopardyBoard();
         jeopardyBoard.clearAllPlayers();
         List<IPlayer> players = jeopardyBoard.getPlayers();
@@ -175,12 +217,15 @@ public class PlayerMenuManager extends AbstractMenu {
         for (int i = 0; i < amountVisible; i++) {
             JTextField text = textFields.get(i);
             if (text.isVisible() && !text.getText().isBlank()) {
-                players.add(new JeopardyPlayer(text.getText().trim()));
+                String pName = text.getText().trim();
+                players.add(new JeopardyPlayer(pName));
+                BuzzerServer.getInstance().registerPlayer(pName);
             }
         }
 
         if (players.isEmpty()) {
             players.add(new JeopardyPlayer("Player 1"));
+            BuzzerServer.getInstance().registerPlayer("Player 1");
         }
 
         String fileToOpen = screen.getFileToOpen();
@@ -195,11 +240,13 @@ public class PlayerMenuManager extends AbstractMenu {
         screen.setContentPane(screen.getJeopardyBoardMenu());
     }
 
+    /**
+     * Syncs contestants registered on their phones into the visible player slots.
+     */
     @Override
     public void tick() {
         addPlayers.setBounds(0, 0, width, height);
 
-        // Sync registered phone players into text fields
         List<String> phonePlayers = BuzzerServer.getInstance().getRegisteredPlayers();
         for (String name : phonePlayers) {
             boolean alreadyPresent = false;
@@ -211,7 +258,7 @@ public class PlayerMenuManager extends AbstractMenu {
                 }
             }
             if (!alreadyPresent) {
-                // First check if an existing visible slot is still a default placeholder
+                // First check if an existing visible slot is still an empty placeholder
                 boolean filledDefault = false;
                 for (int i = 0; i < amountVisible; i++) {
                     JTextField tf = textFields.get(i);
@@ -221,7 +268,7 @@ public class PlayerMenuManager extends AbstractMenu {
                         break;
                     }
                 }
-                // If all visible slots have non-default names, open the next slot
+                // If all visible slots have custom names, expand and open the next slot
                 if (!filledDefault && amountVisible < slotContainers.size()) {
                     JTextField tf = textFields.get(amountVisible);
                     tf.setText(name);
@@ -235,6 +282,9 @@ public class PlayerMenuManager extends AbstractMenu {
         }
     }
 
+    /**
+     * Pre-creates all 15 possible player slots in a 3-column x 5-row grid.
+     */
     private void createDefaultTextFields(JPanel panel) {
         amountVisible = 0;
         textFields.clear();
@@ -247,6 +297,9 @@ public class PlayerMenuManager extends AbstractMenu {
         }
     }
 
+    /**
+     * Builds an individual player row with a text field and hoverable red kick button.
+     */
     private void playerSlotCreator(int index, int col, int r, JPanel panel) {
         JPanel slot = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
         slot.setOpaque(false);
@@ -313,7 +366,7 @@ public class PlayerMenuManager extends AbstractMenu {
         slotContainers.add(slot);
         kickButtons.add(kickBtn);
 
-        // Only player 1 starts visible
+        // Only player 1 starts visible in the lobby
         if (index == 0) {
             slot.setVisible(true);
             enterPlayer.setVisible(true);
