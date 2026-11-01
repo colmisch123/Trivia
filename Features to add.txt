@@ -1,1 +1,1 @@
-Maybe add a button that manually adds/subtracts points just in case
+Mobile support

@@ -20,12 +20,8 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
     private IQuestion currentQuestion;
     private IPlayer selectedPlayer = null;
     private JButton selectedButton = null;
-    private boolean isDeductMode = false;
-    private boolean isPardoned = false;
 
-    private JButtonListener editButton;
     private JButtonListener nextButton;
-    private JButtonListener pardonButton;
     private JButtonListener customPointsButton;
     private final List<JButtonListener> playerButtons = new ArrayList<>();
 
@@ -37,8 +33,6 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
     public void onReset() {
         selectedPlayer = null;
         selectedButton = null;
-        isDeductMode = false;
-        isPardoned = false;
         foreground.removeAll();
     }
 
@@ -57,8 +51,6 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
         foreground.removeAll();
         selectedPlayer = null;
         selectedButton = null;
-        isDeductMode = false;
-        isPardoned = false;
         playerButtons.clear();
 
         IBoard<ISubject> board = screen.getJeopardyBoard();
@@ -83,7 +75,7 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
         // Row 1: Subtitle / Value Info
         JLabel subtitle = new JLabel();
         String initialSubtitle = isForbiddenTile
-                ? "FORBIDDEN TILE! Penalty: -$1,000,000  |  Redemption available below"
+                ? "FORBIDDEN TILE! Value: -$1,000,000  |  Select player to penalize, or click Next to skip"
                 : "Question Value: $" + questionValue + "  |  Click a player to select (click again to deselect)";
         TextConfigure.configure()
                 .setX(1).setY(1)
@@ -95,62 +87,7 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
                 .setNorth(5).setSouth(15)
                 .confirm(subtitle, screen, foreground);
 
-        // Row 2, Col 0: Mode Toggle (Award vs Deduct)
-        editButton = new JButtonListener("Mode: Award (+)", (e) -> {
-            isDeductMode = !isDeductMode;
-            if (isDeductMode) {
-                editButton.setText("Mode: Deduct (-)");
-                editButton.setBackground(new Color(255, 80, 80));
-                editButton.setForeground(Color.WHITE);
-                if (selectedButton != null) {
-                    selectedButton.setBackground(new Color(255, 80, 80));
-                    selectedButton.setForeground(Color.WHITE);
-                }
-            } else {
-                editButton.setText("Mode: Award (+)");
-                editButton.setBackground(Color.WHITE);
-                editButton.setForeground(Color.BLACK);
-                if (selectedButton != null) {
-                    selectedButton.setBackground(Screen.JEOPARDY_YELLOW);
-                    selectedButton.setForeground(Color.BLACK);
-                }
-            }
-        });
-        editButton.setBackground(Color.WHITE);
-        editButton.setForeground(Color.BLACK);
-        ButtonConfigure.configure()
-                .setX(0).setY(2)
-                .setWidth(130).setHeight(30)
-                .setNorth(5).setSouth(15).setWest(10).setEast(10)
-                .finish(editButton, screen, foreground);
-
-        // Row 2, Col 1: Center Controls (Pardon button for forbidden tile + Custom Points Adjustment)
-        JPanel centerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-        centerPanel.setOpaque(false);
-
-        if (isForbiddenTile) {
-            pardonButton = new JButtonListener("Pardon Player (0 pts)", (e) -> {
-                isPardoned = !isPardoned;
-                if (isPardoned) {
-                    pardonButton.setText("Pardoned! (0 pts)");
-                    pardonButton.setBackground(new Color(100, 255, 100));
-                    pardonButton.setForeground(Color.BLACK);
-                    subtitle.setText("PLAYER PARDONED! 0 points penalty will be applied.");
-                    subtitle.setForeground(new Color(100, 255, 100));
-                } else {
-                    pardonButton.setText("Pardon Player (0 pts)");
-                    pardonButton.setBackground(Color.WHITE);
-                    pardonButton.setForeground(Color.BLACK);
-                    subtitle.setText("FORBIDDEN TILE! Penalty: -$1,000,000  |  Click Pardon to forgive");
-                    subtitle.setForeground(new Color(255, 100, 100));
-                }
-            });
-            pardonButton.setFont(new Font("Century Gothic", Font.BOLD, 12));
-            pardonButton.setBackground(Color.WHITE);
-            pardonButton.setForeground(Color.BLACK);
-            centerPanel.add(pardonButton);
-        }
-
+        // Row 2, Col 0: Custom Points Adjustment
         customPointsButton = new JButtonListener("+/- Custom Pts", (e) -> {
             if (selectedPlayer == null) {
                 JOptionPane.showMessageDialog(
@@ -164,7 +101,7 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
 
             String input = JOptionPane.showInputDialog(
                     screen,
-                    "Enter points to add/subtract for " + selectedPlayer.getNames() + "\n(e.g. 500 for theme bonus, or 1000000 to restore score):",
+                    "Enter points to add/subtract for " + selectedPlayer.getNames() + "\n(e.g. 500 for bonus, or -200 for penalty):",
                     "Manual Score Adjustment",
                     JOptionPane.QUESTION_MESSAGE
             );
@@ -190,28 +127,16 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
         customPointsButton.setFont(new Font("Century Gothic", Font.BOLD, 12));
         customPointsButton.setBackground(Color.WHITE);
         customPointsButton.setForeground(Color.BLACK);
-        centerPanel.add(customPointsButton);
-
-        GridBagConstraints gbcCenter = new GridBagConstraints();
-        gbcCenter.gridx = 1;
-        gbcCenter.gridy = 2;
-        gbcCenter.insets = new Insets(5, 5, 15, 5);
-        gbcCenter.anchor = GridBagConstraints.CENTER;
-        screen.getLayout().setConstraints(centerPanel, gbcCenter);
-        foreground.add(centerPanel);
+        ButtonConfigure.configure()
+                .setX(0).setY(2)
+                .setWidth(140).setHeight(30)
+                .setNorth(5).setSouth(15).setWest(10).setEast(10)
+                .finish(customPointsButton, screen, foreground);
 
         // Row 2, Col 2: Next Button
         nextButton = new JButtonListener("Next =>", (e) -> {
             if (selectedPlayer != null && currentQuestion != null) {
-                int value = currentQuestion.getValue();
-                if (isForbiddenTile && isPardoned) {
-                    value = 0;
-                }
-                if (isDeductMode) {
-                    selectedPlayer.addScore(-value);
-                } else {
-                    selectedPlayer.addScore(value);
-                }
+                selectedPlayer.addScore(currentQuestion.getValue());
             }
             selectedPlayer = null;
             selectedButton = null;
@@ -260,13 +185,8 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
                     }
                     selectedPlayer = player;
                     selectedButton = playerBtn;
-                    if (isDeductMode) {
-                        selectedButton.setBackground(new Color(255, 80, 80));
-                        selectedButton.setForeground(Color.WHITE);
-                    } else {
-                        selectedButton.setBackground(Screen.JEOPARDY_YELLOW);
-                        selectedButton.setForeground(Color.BLACK);
-                    }
+                    selectedButton.setBackground(Screen.JEOPARDY_YELLOW);
+                    selectedButton.setForeground(Color.BLACK);
                 }
             });
 
