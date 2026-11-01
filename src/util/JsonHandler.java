@@ -22,6 +22,9 @@ public class JsonHandler {
     private static final String QUESTION = "question";
     private static final String ANSWER = "answer";
     private static final String VALUE = "value";
+    private static final String IMAGE = "image";
+    private static final String AUDIO = "audio";
+    private static final String TILE_TEXT = "tile_text";
 
     private static final String DIRECTORY = System.getProperty("user.dir");
 
@@ -83,6 +86,15 @@ public class JsonHandler {
                 questionObject.addProperty(QUESTION, q.getQuestion());
                 questionObject.addProperty(ANSWER, q.getAnswer());
                 questionObject.addProperty(VALUE, q.getValue());
+                if (q.getImage() != null && !q.getImage().isBlank()) {
+                    questionObject.addProperty(IMAGE, q.getImage());
+                }
+                if (q.getAudio() != null && !q.getAudio().isBlank()) {
+                    questionObject.addProperty(AUDIO, q.getAudio());
+                }
+                if (q.getTileText() != null && !q.getTileText().isBlank()) {
+                    questionObject.addProperty(TILE_TEXT, q.getTileText());
+                }
                 questionJson.add(questionObject);
             }
 
@@ -106,10 +118,14 @@ public class JsonHandler {
             JsonArray questions = jsonObject.getAsJsonArray(SUBJECT);
             for(JsonElement q : questions) {
                 JsonObject qObject = q.getAsJsonObject();
-                String question = qObject.get(QUESTION).getAsString();
-                String answer = qObject.get(ANSWER).getAsString();
-                int value = qObject.get(VALUE).getAsInt();
-                subject.addQuestion(questionFactory.create(question, answer, value));
+                String question = qObject.has(QUESTION) ? qObject.get(QUESTION).getAsString() : "";
+                String answer = qObject.has(ANSWER) ? qObject.get(ANSWER).getAsString() : "";
+                int value = qObject.has(VALUE) ? qObject.get(VALUE).getAsInt() : 0;
+                String image = qObject.has(IMAGE) && !qObject.get(IMAGE).isJsonNull() ? qObject.get(IMAGE).getAsString() : null;
+                String audio = qObject.has(AUDIO) && !qObject.get(AUDIO).isJsonNull() ? qObject.get(AUDIO).getAsString() : null;
+                String tileText = qObject.has(TILE_TEXT) && !qObject.get(TILE_TEXT).isJsonNull() ? qObject.get(TILE_TEXT).getAsString() : null;
+
+                subject.addQuestion(questionFactory.create(question, answer, value, image, audio, tileText));
             }
 
             subjects.add(subject);

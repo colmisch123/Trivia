@@ -104,10 +104,24 @@ public class BoardMenuManager extends AbstractMenu {
 
                 totalBoardButtons++;
 
-                ButtonConfigure.configure().setX(i).setY(j + 1).setText("$" + q.getValue())
+                String tileText = q.getTileText();
+                String buttonText;
+                if (tileText != null && !tileText.isBlank()) {
+                    buttonText = "<html><center>" + tileText.replace(" ", "<br>") + "</center></html>";
+                } else {
+                    buttonText = "$" + q.getValue();
+                }
+
+                ButtonConfigure.configure().setX(i).setY(j + 1).setText(buttonText)
                         .setWidth(90).setHeight(65)
                         .setSouth(5).setBackgroundColor(blue)
                         .setForegroundColor(yellow).finish(button, screen, foreground);
+
+                if (tileText != null && !tileText.isBlank()) {
+                    button.setFont(new Font("Century Gothic", Font.BOLD, 10));
+                } else {
+                    button.setFont(new Font("Century Gothic", Font.BOLD, 16));
+                }
             }
         }
 

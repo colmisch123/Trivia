@@ -9,6 +9,11 @@ public class JeopardyQuestionFactory implements IQuestionFactory<IQuestion> {
         return new JeopardyQuestion(question, answer, value);
     }
 
+    @Override
+    public IQuestion create(String question, String answer, int value, String image, String audio, String tileText) {
+        return new JeopardyQuestion(question, answer, value, image, audio, tileText);
+    }
+
     public static JeopardyQuestionFactory getFactory() {
         return new JeopardyQuestionFactory();
     }

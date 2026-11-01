@@ -1,0 +1,253 @@
+[
+  {
+    "subject_title": "???",
+    "subject_questions": [
+      {
+        "question": "Who is the best Reinhardt main on the planet?",
+        "answer": "Janick",
+        "value": 200
+      },
+      {
+        "question": "This person saved my grandma while her house was on fire, and gave me a million dollars afterward.",
+        "answer": "Janick",
+        "value": 200
+      },
+      {
+        "question": "Who’s the most handsome?",
+        "answer": "Janick",
+        "value": 200
+      },
+      {
+        "question": "🐐",
+        "answer": "Janick",
+        "value": 200
+      },
+      {
+        "question": "Who put their foot in a toilet for $1?",
+        "answer": "Janick",
+        "value": 300
+      }
+    ]
+  },
+  {
+    "subject_title": "Video Games",
+    "subject_questions": [
+      {
+        "question": "What is the best selling video game console of all time?",
+        "answer": "PlayStation 2",
+        "value": 100
+      },
+      {
+        "question": "What is the name of the YouTuber who has been caught cheating in several instances of their Minecraft Manhunt series?",
+        "answer": "Dream",
+        "value": 200
+      },
+      {
+        "question": "What is the name of the Path of Exile currency that allows you to create a mirrored copy of any non-unique, non-corrupted item? It is also seen in the game’s logo.",
+        "answer": "Mirror of Kalandra",
+        "value": 300
+      },
+      {
+        "question": "What is the minimum number of logs required to craft 7 wooden hoes in Minecraft?",
+        "answer": "6 logs",
+        "value": 300
+      },
+      {
+        "question": "Name the game that has the highest Metacritic score of all time at 99, and whose remake is releasing later this week.",
+        "answer": "The Legend of Zelda: Ocarina of Time",
+        "value": 400
+      }
+    ]
+  },
+  {
+    "subject_title": "Bullcrap",
+    "subject_questions": [
+      {
+        "question": "What is the name of the World Tree in Norse Mythology?",
+        "answer": "Yggdrasil",
+        "value": 100
+      },
+      {
+        "question": "Name any book in George R. R. Martin’s A Song of Ice and Fire book series.",
+        "answer": "A Game of Thrones, A Clash of Kings, A Storm of Swords, A Feast for Crows, or A Dance with Dragons",
+        "value": 200
+      },
+      {
+        "question": "What is the name of Slenderman’s gay cousin?",
+        "answer": "I like menderman",
+        "value": 300
+      },
+      {
+        "question": "What are the following lines from/talking about? “You know I actually might go back to Plants vs. Zombies. So the peashooter has many forms; fire, ice, electric, shoot even shadow. But recently, there’s been new mods that really need to be added to the game. So there’s three, and the first one is Bendy and he shoots wrenches. Oh that’s sick! But why not ink? Dude that’s actually a good idea”",
+        "answer": "Modded PvZ podcast clip",
+        "value": 400
+      },
+      {
+        "question": "You CANNOT read, -1,000,000 points",
+        "answer": "Choose an opponent. You must tie or beat them in Tic-Tac-Toe to negate this effect. If your opponent wins, they get 200 points",
+        "value": -1000000,
+        "tile_text": "DON'T CHOOSE THIS"
+      }
+    ]
+  },
+  {
+    "subject_title": "Who’s that pokemon?",
+    "subject_questions": [
+      {
+        "question": "Name this character",
+        "answer": "Meimei",
+        "value": 100,
+        "image": "Halloween_trivia/m.jpeg"
+      },
+      {
+        "question": "Name this character",
+        "answer": "Rigby",
+        "value": 200,
+        "image": "Halloween_trivia/r.jpg"
+      },
+      {
+        "question": "Name this character?",
+        "answer": "Gumbus",
+        "value": 300,
+        "image": "Halloween_trivia/g.jpg"
+      },
+      {
+        "question": "Name this character",
+        "answer": "Mr. Fresh",
+        "value": 400,
+        "image": "Halloween_trivia/F.jpg"
+      },
+      {
+        "question": "Name this character",
+        "answer": "Caden",
+        "value": 500,
+        "image": "Halloween_trivia/C.jpg"
+      }
+    ]
+  },
+  {
+    "subject_title": "Guess the song",
+    "subject_questions": [
+      {
+        "question": "Guess the song",
+        "answer": "Megalovania",
+        "value": 100,
+        "audio": "Halloween_trivia/mega.mp3"
+      },
+      {
+        "question": "Guess the song",
+        "answer": "Smells Like Teen Spirit",
+        "value": 200,
+        "audio": "Halloween_trivia/nerve.mp3"
+      },
+      {
+        "question": "Guess the song",
+        "answer": "Purple Rain",
+        "value": 300,
+        "audio": "Halloween_trivia/burp.mp3"
+      },
+      {
+        "question": "Guess the audio",
+        "answer": "Noelle snoring clip",
+        "value": 400,
+        "audio": "Halloween_trivia/honk shoo.mp3"
+      },
+      {
+        "question": "Guess the audio",
+        "answer": "Gart clip",
+        "value": 500,
+        "audio": "Halloween_trivia/gary.mp3"
+      }
+    ]
+  },
+  {
+    "subject_title": "History",
+    "subject_questions": [
+      {
+        "question": "Who were the two Democrat and Republican candidates of the US Presidential Election in the year 2000?",
+        "answer": "George W. Bush and Al Gore",
+        "value": 200
+      },
+      {
+        "question": "This Romanian prince served as the inspiration behind Bram Stoker’s 1897 horror novel Dracula. He was known for skewering thousands of his enemies on large wooden stakes.",
+        "answer": "Vlad the Impaler (Vlad III / Vlad Țepeș)",
+        "value": 300
+      },
+      {
+        "question": "Historical traitors: Give me the rhyming names of the famous traitors of Jesus and Julius Caesar. The first betrayed Jesus for 30 pieces of silver, and the second betrayed Caesar in fear of his growing hunger for power.",
+        "answer": "Judas and Brutus",
+        "value": 400
+      },
+      {
+        "question": "Who was President of the Soviet Union at the time of its collapse? Hint: He had a funky birthmark on top of his head.",
+        "answer": "Mikhail Gorbachev",
+        "value": 500
+      },
+      {
+        "question": "This Japanese warrior of legend is alleged to have died standing up after being pelted with dozens of arrows (also known for his Spear).",
+        "answer": "Saitō Musashibō Benkei (Benkei)",
+        "value": 600
+      }
+    ]
+  },
+  {
+    "subject_title": "Science",
+    "subject_questions": [
+      {
+        "question": "What is the most common element in the universe?",
+        "answer": "Hydrogen",
+        "value": 100
+      },
+      {
+        "question": "What are the three main types of rocks?",
+        "answer": "Igneous, Metamorphic, and Sedimentary",
+        "value": 200
+      },
+      {
+        "question": "What is the only marsupial native to North America?",
+        "answer": "Opossum (Virginia Opossum)",
+        "value": 300
+      },
+      {
+        "question": "What is the main protein in human hair and nails? (Hint: If you have frizzy hair, you can undergo a # treatment)",
+        "answer": "Keratin",
+        "value": 400
+      },
+      {
+        "question": "This effect is the reason hurricanes spin counterclockwise in the northern hemisphere, and clockwise in the southern hemisphere. It is also responsible for the myth that toilet flushes spin the opposite direction in the southern hemisphere.",
+        "answer": "Coriolis effect",
+        "value": 500
+      }
+    ]
+  },
+  {
+    "subject_title": "Competitive",
+    "subject_questions": [
+      {
+        "question": "Write down the most women’s names. Must be real, can be dead. (1 minute)",
+        "answer": "Whoever wrote down the most valid names wins!",
+        "value": 200
+      },
+      {
+        "question": "Who can name the largest finite number written out in plain english (e.g. 100 must be written as one hundred). Rules: No operators in your answer allowed (+, x, ^, etc.). Googol and Googolplex are banned. If you can beat Coal's number, you get an extra 300 points. (2 minutes)",
+        "answer": "Coal's number: Tree(3)",
+        "value": 300
+      },
+      {
+        "question": "Draw something Halloween related. The best drawing by my standards wins. (5 minutes)",
+        "answer": "Coal chooses best drawing",
+        "value": 300
+      },
+      {
+        "question": "Whoever can write the longest, grammatically correct sentence without using the letter “E” wins. The person with the highest letter count wins. (4 minutes)",
+        "answer": "Longest sentence without Es",
+        "value": 400
+      },
+      {
+        "question": "Whoever can name the most swords that go into the Zenith sword from Terraria wins. Incorrect swords will not be counted against you. (2 minutes)",
+        "answer": "Terra Blade, Meowmere, Star Wrath, Influx Waver, The Horseman’s Blade, Seedler, Starfury, Bee Keeper, Enchanted Sword, Copper Shortsword.",
+        "value": 500
+      }
+    ]
+  }
+]
