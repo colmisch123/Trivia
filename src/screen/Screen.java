@@ -4,10 +4,13 @@ import impl.JeopardyBoard;
 import intr.IBoard;
 import intr.ISubject;
 import menu.*;
+import net.BuzzerServer;
 import util.JsonHandler;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,6 +55,15 @@ public class Screen extends JFrame implements Runnable {
 
         jeopardyBoard = new JeopardyBoard();
 
+        // Start mobile buzzer server
+        BuzzerServer.getInstance().start();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                BuzzerServer.getInstance().stop();
+            }
+        });
+
         startMenu = new StartMenuManager(this);
         jeopardyBoardMenu = new BoardMenuManager(this);
         questionMenu = new QuestionMenuManager(this);
@@ -71,6 +83,14 @@ public class Screen extends JFrame implements Runnable {
         menu.onSetActive();
         currentMenu = menu;
         setContentPane(menu.getPane());
+
+        if (menu == playerMenu) {
+            BuzzerServer.getInstance().setPhase(BuzzerServer.Phase.REGISTRATION);
+        } else if (menu == jeopardyBoardMenu) {
+            BuzzerServer.getInstance().setPhase(BuzzerServer.Phase.BOARD);
+        } else if (menu == rewardMenu) {
+            BuzzerServer.getInstance().setPhase(BuzzerServer.Phase.REWARD);
+        }
     }
 
     public GridBagLayout getLayout() {

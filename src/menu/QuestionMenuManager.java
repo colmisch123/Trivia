@@ -2,6 +2,7 @@ package menu;
 
 import impl.JeopardyQuestion;
 import intr.IQuestion;
+import net.BuzzerServer;
 import screen.Screen;
 import util.AudioPlayer;
 import util.JBackgroundPanel;
@@ -29,6 +30,11 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
     private JButtonListener playAudioButton;
     private JLabel audioStatusLabel;
 
+    private JPanel buzzerPanel;
+    private JLabel buzzerStatusLabel;
+    private JButtonListener wrongAnswerBtn;
+    private JButtonListener reopenBtn;
+
     private IQuestion currentQuestion;
 
     public QuestionMenuManager(Screen screen) {
@@ -38,6 +44,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
     @Override
     public void onReset() {
         AudioPlayer.stop();
+        BuzzerServer.getInstance().closeBuzzer();
         if (imageLabel != null) {
             imageLabel.setIcon(null);
             imageLabel.setVisible(false);
@@ -50,6 +57,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
     @Override
     public void onRemove() {
         AudioPlayer.stop();
+        BuzzerServer.getInstance().closeBuzzer();
     }
 
     @Override
@@ -105,22 +113,22 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         audioPanel.setOpaque(false);
         audioPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 15, 5));
 
-        playAudioButton = new JButtonListener("▶ Play Audio Clip", (e) -> {
+        playAudioButton = new JButtonListener("Play Audio Clip", (e) -> {
             if (currentQuestion == null || currentQuestion.getAudio() == null) {
                 return;
             }
             if (AudioPlayer.isPlaying()) {
                 AudioPlayer.stop();
-                playAudioButton.setText("▶ Play Audio Clip");
+                playAudioButton.setText("Play Audio Clip");
                 playAudioButton.setBackground(Color.WHITE);
                 audioStatusLabel.setText("Audio stopped");
             } else {
-                playAudioButton.setText("■ Stop Audio");
+                playAudioButton.setText("Stop Audio");
                 playAudioButton.setBackground(new Color(255, 100, 100));
                 audioStatusLabel.setText("Playing audio clip...");
                 AudioPlayer.play(currentQuestion.getAudio(), () -> {
                     SwingUtilities.invokeLater(() -> {
-                        playAudioButton.setText("↺ Replay Audio");
+                        playAudioButton.setText("Replay Audio");
                         playAudioButton.setBackground(Color.WHITE);
                         audioStatusLabel.setText("Audio finished");
                     });
@@ -146,9 +154,47 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         screen.getLayout().setConstraints(audioPanel, gbcAudio);
         fg.add(audioPanel);
 
-        // Row 3: Action Buttons
+        // Row 3: Buzzer Status & Control Bar
+        buzzerPanel = new JPanel();
+        buzzerPanel.setOpaque(true);
+        buzzerPanel.setBackground(Screen.JEOPARDY_BLUE);
+        buzzerPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 15, 6));
+
+        buzzerStatusLabel = new JLabel("Mobile Buzzer: READY");
+        buzzerStatusLabel.setFont(new Font("Century Gothic", Font.BOLD, 16));
+        buzzerStatusLabel.setForeground(Screen.JEOPARDY_YELLOW);
+        buzzerPanel.add(buzzerStatusLabel);
+
+        wrongAnswerBtn = new JButtonListener("Incorrect (Reopen Buzzer)", (e) -> {
+            BuzzerServer.getInstance().markCurrentWinnerWrong();
+        });
+        wrongAnswerBtn.setFont(new Font("Century Gothic", Font.BOLD, 13));
+        wrongAnswerBtn.setBackground(new Color(255, 100, 100));
+        wrongAnswerBtn.setForeground(Color.WHITE);
+        wrongAnswerBtn.setVisible(false);
+        buzzerPanel.add(wrongAnswerBtn);
+
+        reopenBtn = new JButtonListener("Reopen All", (e) -> {
+            BuzzerServer.getInstance().resetBuzzer();
+        });
+        reopenBtn.setFont(new Font("Century Gothic", Font.BOLD, 13));
+        reopenBtn.setBackground(Color.WHITE);
+        reopenBtn.setForeground(Color.BLACK);
+        reopenBtn.setVisible(false);
+        buzzerPanel.add(reopenBtn);
+
+        GridBagConstraints gbcBuzzer = new GridBagConstraints();
+        gbcBuzzer.gridx = 0;
+        gbcBuzzer.gridy = 3;
+        gbcBuzzer.insets = new Insets(8, 10, 8, 10);
+        gbcBuzzer.anchor = GridBagConstraints.CENTER;
+        screen.getLayout().setConstraints(buzzerPanel, gbcBuzzer);
+        fg.add(buzzerPanel);
+
+        // Row 4: Action Buttons (Show Answer, Next)
         answerButton = new JButtonListener("Show Answer", (e) -> {
             AudioPlayer.stop();
+            BuzzerServer.getInstance().closeBuzzer();
             answerButton.setVisible(false);
             nextButton.setVisible(true);
             question.setVisible(false);
@@ -157,6 +203,7 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
 
         nextButton = new JButtonListener("Next =>", (e) -> {
             AudioPlayer.stop();
+            BuzzerServer.getInstance().closeBuzzer();
             answerButton.setVisible(true);
             nextButton.setVisible(false);
             question.setVisible(true);
@@ -170,13 +217,13 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         });
 
         ButtonConfigure.configure()
-                .setX(0).setY(3)
+                .setX(0).setY(4)
                 .setWidth(75).setHeight(40)
                 .setNorth(15).setSouth(15)
                 .finish(answerButton, screen, fg);
 
         ButtonConfigure.configure()
-                .setX(0).setY(3)
+                .setX(0).setY(4)
                 .setWidth(75).setHeight(40)
                 .setNorth(15).setSouth(15)
                 .finish(nextButton, screen, fg);
@@ -196,6 +243,9 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         if (currentQuestion == null) {
             return;
         }
+
+        // Open mobile buzzer for this question
+        BuzzerServer.getInstance().openBuzzer(currentQuestion);
 
         // Setup question and answer text with auto-wrapping
         String qText = "<html><center style='width: 600px;'>" + currentQuestion.getQuestion() + "</center></html>";
@@ -244,16 +294,45 @@ public class QuestionMenuManager extends AbstractMenu implements Consumer<IQuest
         String audioPath = currentQuestion.getAudio();
         if (audioPath != null && !audioPath.isBlank()) {
             audioPanel.setVisible(true);
-            playAudioButton.setText("▶ Play Audio Clip");
+            playAudioButton.setText("Play Audio Clip");
             playAudioButton.setBackground(Color.WHITE);
             audioStatusLabel.setText("Audio clip ready");
         } else {
             audioPanel.setVisible(false);
         }
+
+        // Setup initial buzzer state
+        updateBuzzerUI();
     }
 
     @Override
     public void tick() {
+        updateBuzzerUI();
+    }
+
+    private void updateBuzzerUI() {
+        if (currentQuestion == null || buzzerStatusLabel == null) return;
+
+        if (!currentQuestion.isBuzzable()) {
+            buzzerStatusLabel.setText("Competitive Round - Buzzer Disabled");
+            buzzerStatusLabel.setForeground(Color.LIGHT_GRAY);
+            wrongAnswerBtn.setVisible(false);
+            reopenBtn.setVisible(false);
+            return;
+        }
+
+        String winner = BuzzerServer.getInstance().getCurrentBuzzerWinner();
+        if (winner != null) {
+            buzzerStatusLabel.setText("BUZZ! " + winner.toUpperCase() + " buzzed in!");
+            buzzerStatusLabel.setForeground(new Color(80, 255, 80));
+            wrongAnswerBtn.setVisible(true);
+            reopenBtn.setVisible(true);
+        } else {
+            buzzerStatusLabel.setText("Mobile Buzzer: READY - Waiting for buzz...");
+            buzzerStatusLabel.setForeground(Screen.JEOPARDY_YELLOW);
+            wrongAnswerBtn.setVisible(false);
+            reopenBtn.setVisible(false);
+        }
     }
 
     // For setting question

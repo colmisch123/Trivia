@@ -25,6 +25,7 @@ public class JsonHandler {
     private static final String IMAGE = "image";
     private static final String AUDIO = "audio";
     private static final String TILE_TEXT = "tile_text";
+    private static final String BUZZABLE = "buzzable";
 
     private static final String DIRECTORY = System.getProperty("user.dir");
 
@@ -95,6 +96,9 @@ public class JsonHandler {
                 if (q.getTileText() != null && !q.getTileText().isBlank()) {
                     questionObject.addProperty(TILE_TEXT, q.getTileText());
                 }
+                if (!q.isBuzzable()) {
+                    questionObject.addProperty(BUZZABLE, false);
+                }
                 questionJson.add(questionObject);
             }
 
@@ -124,8 +128,12 @@ public class JsonHandler {
                 String image = qObject.has(IMAGE) && !qObject.get(IMAGE).isJsonNull() ? qObject.get(IMAGE).getAsString() : null;
                 String audio = qObject.has(AUDIO) && !qObject.get(AUDIO).isJsonNull() ? qObject.get(AUDIO).getAsString() : null;
                 String tileText = qObject.has(TILE_TEXT) && !qObject.get(TILE_TEXT).isJsonNull() ? qObject.get(TILE_TEXT).getAsString() : null;
+                boolean buzzable = true;
+                if (qObject.has(BUZZABLE) && !qObject.get(BUZZABLE).isJsonNull()) {
+                    buzzable = qObject.get(BUZZABLE).getAsBoolean();
+                }
 
-                subject.addQuestion(questionFactory.create(question, answer, value, image, audio, tileText));
+                subject.addQuestion(questionFactory.create(question, answer, value, image, audio, tileText, buzzable));
             }
 
             subjects.add(subject);

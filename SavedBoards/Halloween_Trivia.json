@@ -226,27 +226,32 @@
       {
         "question": "Write down the most women’s names. Must be real, can be dead. (1 minute)",
         "answer": "Whoever wrote down the most valid names wins!",
-        "value": 200
+        "value": 200,
+        "buzzable": false
       },
       {
         "question": "Who can name the largest finite number written out in plain english (e.g. 100 must be written as one hundred). Rules: No operators in your answer allowed (+, x, ^, etc.). Googol and Googolplex are banned. If you can beat Coal's number, you get an extra 300 points. (2 minutes)",
         "answer": "Coal's number: Tree(3)",
-        "value": 300
+        "value": 300,
+        "buzzable": false
       },
       {
         "question": "Draw something Halloween related. The best drawing by my standards wins. (5 minutes)",
         "answer": "Coal chooses best drawing",
-        "value": 300
+        "value": 300,
+        "buzzable": false
       },
       {
         "question": "Whoever can write the longest, grammatically correct sentence without using the letter “E” wins. The person with the highest letter count wins. (4 minutes)",
         "answer": "Longest sentence without Es",
-        "value": 400
+        "value": 400,
+        "buzzable": false
       },
       {
         "question": "Whoever can name the most swords that go into the Zenith sword from Terraria wins. Incorrect swords will not be counted against you. (2 minutes)",
         "answer": "Terra Blade, Meowmere, Star Wrath, Influx Waver, The Horseman’s Blade, Seedler, Starfury, Bee Keeper, Enchanted Sword, Copper Shortsword.",
-        "value": 500
+        "value": 500,
+        "buzzable": false
       }
     ]
   }

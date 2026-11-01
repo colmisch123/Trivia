@@ -9,18 +9,24 @@ public class JeopardyQuestion implements IQuestion {
     private final String image;
     private final String audio;
     private final String tileText;
+    private final boolean buzzable;
 
     public JeopardyQuestion(String question, String answer, int value) {
-        this(question, answer, value, null, null, null);
+        this(question, answer, value, null, null, null, true);
     }
 
     public JeopardyQuestion(String question, String answer, int value, String image, String audio, String tileText) {
+        this(question, answer, value, image, audio, tileText, true);
+    }
+
+    public JeopardyQuestion(String question, String answer, int value, String image, String audio, String tileText, boolean buzzable) {
         this.question = question;
         this.answer = answer;
         this.value = value;
         this.image = image;
         this.audio = audio;
         this.tileText = tileText;
+        this.buzzable = buzzable;
     }
 
     @Override
@@ -51,6 +57,11 @@ public class JeopardyQuestion implements IQuestion {
     @Override
     public String getTileText() {
         return tileText;
+    }
+
+    @Override
+    public boolean isBuzzable() {
+        return buzzable;
     }
 
     @Override

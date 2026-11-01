@@ -4,6 +4,7 @@ import intr.IBoard;
 import intr.IPlayer;
 import intr.IQuestion;
 import intr.ISubject;
+import net.BuzzerServer;
 import screen.Screen;
 import util.JBackgroundPanel;
 import util.JButtonListener;
@@ -196,6 +197,23 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
                     .setWidth(120).setHeight(30)
                     .setNorth(6).setSouth(6).setWest(10).setEast(10)
                     .finish(playerBtn, screen, foreground);
+        }
+
+        // Auto-select buzzer winner if someone buzzed in and was not marked wrong
+        String buzzerWinner = BuzzerServer.getInstance().getLastSuccessfulWinner();
+        if (buzzerWinner != null) {
+            for (int i = 0; i < players.size(); i++) {
+                IPlayer p = players.get(i);
+                if (p.getNames().trim().equalsIgnoreCase(buzzerWinner.trim())) {
+                    selectedPlayer = p;
+                    if (i < playerButtons.size()) {
+                        selectedButton = playerButtons.get(i);
+                        selectedButton.setBackground(Screen.JEOPARDY_YELLOW);
+                        selectedButton.setForeground(Color.BLACK);
+                    }
+                    break;
+                }
+            }
         }
 
         foreground.setOpaque(false);

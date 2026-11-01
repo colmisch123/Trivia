@@ -16,4 +16,8 @@ public interface IQuestion {
     default String getTileText() {
         return null;
     }
+
+    default boolean isBuzzable() {
+        return true;
+    }
 }
