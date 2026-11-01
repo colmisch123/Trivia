@@ -3,26 +3,20 @@ package menu;
 import intr.IPlayer;
 import screen.Screen;
 import util.JBackgroundPanel;
+import util.JButtonListener;
+import util.configure.ButtonConfigure;
 import util.configure.TextConfigure;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class WinningMenu extends AbstractMenu {
-    private JLabel placements;
-    private JLabel firstL;
-    private JLabel secondL;
-    private JLabel thirdL;
     private boolean hasInit = false;
 
     public WinningMenu(Screen screen) {
         super(screen);
-
-        placements = new JLabel();
-        firstL = new JLabel();
-        secondL = new JLabel();
-        thirdL = new JLabel();
     }
 
     @Override
@@ -31,27 +25,51 @@ public class WinningMenu extends AbstractMenu {
             return;
         }
         hasInit = true;
+        foreground.removeAll();
 
-        List<IPlayer> players = screen.getJeopardyBoard().getPlayers();
+        List<IPlayer> players = new ArrayList<>(screen.getJeopardyBoard().getPlayers());
+        players.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
 
-        IPlayer first = findHighestScore(players);
-        players.remove(first);
+        JLabel placements = new JLabel();
+        TextConfigure.configure()
+                .setBackgroundColor(Screen.JEOPARDY_BLUE)
+                .setText("Final Placements")
+                .setSize(40).setStyle(Font.BOLD)
+                .setNorth(30).setSouth(20)
+                .confirm(placements, screen, foreground);
 
-        IPlayer second = findHighestScore(players);
-        players.remove(second);
+        int max = Math.min(players.size(), 5);
+        for (int i = 0; i < max; i++) {
+            IPlayer p = players.get(i);
+            JLabel label = new JLabel();
+            String placeText = (i + 1) + ". " + p.getNames() + " - $" + p.getScore();
+            TextConfigure.configure()
+                    .setBackgroundColor(Screen.JEOPARDY_BLUE)
+                    .setText(placeText)
+                    .setY(i + 1)
+                    .setSize(22).setStyle(Font.BOLD)
+                    .setNorth(5).setSouth(5)
+                    .confirm(label, screen, foreground);
+        }
 
-        IPlayer third = findHighestScore(players);
-        players.remove(third);
+        JButtonListener mainMenuBtn = new JButtonListener("Main Menu", (e) -> {
+            screen.setContentPane(screen.getStartMenu());
+        });
+        ButtonConfigure.configure()
+                .setY(max + 1)
+                .setWidth(100).setHeight(30)
+                .setNorth(30)
+                .finish(mainMenuBtn, screen, foreground);
 
-        TextConfigure.configure().setBackgroundColor(Screen.JEOPARDY_BLUE).setText("Placements:").setSize(50).confirm(placements, screen, foreground);
-        TextConfigure.configure().setBackgroundColor(Screen.JEOPARDY_BLUE).setText("1: " + first.getNames()).setY(1).setSize(25).confirm(firstL, screen, foreground);
-        TextConfigure.configure().setBackgroundColor(Screen.JEOPARDY_BLUE).setText("2: " + second.getNames()).setY(2).setSize(25).confirm(secondL, screen, foreground);
-        TextConfigure.configure().setBackgroundColor(Screen.JEOPARDY_BLUE).setText("3: " + third.getNames()).setY(3).setSize(25).confirm(thirdL, screen, foreground);
+        foreground.setOpaque(false);
+        foreground.setLayout(screen.getLayout());
+        foreground.setBounds(0, 0, width, height);
     }
 
     @Override
     public void onReset() {
-
+        hasInit = false;
+        foreground.removeAll();
     }
 
     @Override
@@ -67,16 +85,5 @@ public class WinningMenu extends AbstractMenu {
     @Override
     public void tick() {
 
-    }
-
-    private IPlayer findHighestScore(List<IPlayer> players) {
-        IPlayer first = players.get(0);
-        for (IPlayer player : players) {
-            if (player.getScore() > first.getScore()) {
-                first = player;
-            }
-        }
-
-        return first;
     }
 }

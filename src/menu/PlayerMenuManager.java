@@ -136,11 +136,12 @@ public class PlayerMenuManager extends AbstractMenu {
             }
         });
 
-        if(!screen.getFileToOpen().equals(Screen.DEFAULT_FILE_TO_OPEN)) {
-            String fileToOpen = screen.getFileToOpen();
-            jeopardyBoard.setSubjects(fileToOpen);
-            System.out.println("Successfully reading " + fileToOpen);
-        }
+        String fileToOpen = screen.getFileToOpen();
+        jeopardyBoard.setSubjects(fileToOpen);
+        System.out.println("Successfully loaded board " + fileToOpen);
+
+        screen.getJeopardyBoardMenu().onReset();
+        screen.getWinningMenu().onReset();
 
         screen.setContentPane(screen.getJeopardyBoardMenu());
     }

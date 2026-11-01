@@ -1,0 +1,8 @@
+[RESOLVED] After answering a question, you are given a screen where you can choose who answered correctly. The bug is that you can click a name multiple times, and it allocates the points every single time.
+-> Fixed: RewardMenuManager now tracks a selected player and only allocates points once when clicking "Next =>". Clicking a player button toggles selection on/off and switches highlight without modifying scores.
+
+[RESOLVED] This screen also displayed weirdly with the test question set up, hiding things under each other.
+-> Fixed: RewardMenuManager now uses an independent 3-column GridBagLayout with explicit row/column coordinates that does not depend on subject count or question count.
+
+[RESOLVED] On board load screen there should be some sort of error message that pops up if you enter an invalid board name.
+-> Fixed: LoadMenuManager now validates whether the file exists in SavedBoards and parses into valid Jeopardy subjects/questions. Displays error dialog and inline message, and displays available boards.

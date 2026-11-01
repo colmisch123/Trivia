@@ -85,9 +85,14 @@ public class JeopardyBoard implements IBoard<ISubject> {
         if(json == null) {
             System.out.println("Error reading " + fileToOpen + ". Using default instead");
             subjects = createDefaultSubjects();
-            JsonHandler.exportJsonToFile(JsonHandler.serializeBoard(this), "default");
+            JsonHandler.exportJsonToFile(JsonHandler.serializeBoard(this), Screen.DEFAULT_FILE_TO_OPEN);
         } else {
-            subjects = JsonHandler.deSerializeSubjects(json, JeopardySubjectFactory.getFactory(), JeopardyQuestionFactory.getFactory());
+            try {
+                subjects = JsonHandler.deSerializeSubjects(json, JeopardySubjectFactory.getFactory(), JeopardyQuestionFactory.getFactory());
+            } catch (Exception e) {
+                System.out.println("Error deserializing " + fileToOpen + " (" + e.getMessage() + "). Using default instead");
+                subjects = createDefaultSubjects();
+            }
         }
     }
 

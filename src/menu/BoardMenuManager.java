@@ -64,6 +64,7 @@ public class BoardMenuManager extends AbstractMenu {
         }
 
         allBoardButtons = new ArrayList<>();
+        totalBoardButtons = 0;
 
         List<ISubject> subjects = screen.getJeopardyBoard().getSubjects();
 
@@ -147,6 +148,7 @@ public class BoardMenuManager extends AbstractMenu {
     @Override
     public void onReset() {
         hasInit = false;
+        totalBoardButtons = 0;
         foreground.removeAll();
     }
 

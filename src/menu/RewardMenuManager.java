@@ -17,14 +17,14 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestion> {
-    //5 seconds
-    public static final int INTERVAL = 2;
-
     private IQuestion currentQuestion;
-    private boolean editMode = false;
-    private int timer = 0;
+    private IPlayer selectedPlayer = null;
+    private JButton selectedButton = null;
+    private boolean isDeductMode = false;
 
-    private List<JButton> allButtons;
+    private JButtonListener editButton;
+    private JButtonListener nextButton;
+    private final List<JButtonListener> playerButtons = new ArrayList<>();
 
     public RewardMenuManager(Screen screen) {
         super(screen);
@@ -32,7 +32,10 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
 
     @Override
     public void onReset() {
-
+        selectedPlayer = null;
+        selectedButton = null;
+        isDeductMode = false;
+        foreground.removeAll();
     }
 
     @Override
@@ -41,80 +44,154 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
     }
 
     @Override
+    public JPanel addForeground() {
+        return new JPanel();
+    }
+
+    @Override
     public void onSetActive() {
+        foreground.removeAll();
+        selectedPlayer = null;
+        selectedButton = null;
+        isDeductMode = false;
+        playerButtons.clear();
+
         IBoard<ISubject> board = screen.getJeopardyBoard();
-        List<ISubject> subjects = board.getSubjects();
         List<IPlayer> players = board.getPlayers();
 
-        allButtons = new ArrayList<>();
+        int questionValue = currentQuestion != null ? currentQuestion.getValue() : 0;
 
-        int spot = Math.floorDiv(subjects.size(), 2);
+        // Row 0: Title
+        JLabel title = new JLabel();
+        TextConfigure.configure()
+                .setX(1).setY(0)
+                .setText("Who Answered Correctly?")
+                .setSize(24).setStyle(Font.BOLD)
+                .setTextColor(Screen.JEOPARDY_YELLOW)
+                .setBackgroundColor(Screen.JEOPARDY_BLUE)
+                .setWidth(200).setHeight(30)
+                .setNorth(20).setSouth(5)
+                .confirm(title, screen, foreground);
 
-        JButtonListener edit = new JButtonListener("Edit", (e) -> {
-            editMode = !editMode;
-            if(editMode) {
-                ((JButton) e.getSource()).setBackground(Color.red);
+        // Row 1: Subtitle / Value Info
+        JLabel subtitle = new JLabel();
+        TextConfigure.configure()
+                .setX(1).setY(1)
+                .setText("Question Value: $" + questionValue + "  |  Click a player to select (click again to deselect)")
+                .setSize(14).setStyle(Font.BOLD)
+                .setTextColor(Color.WHITE)
+                .setBackgroundColor(Screen.JEOPARDY_BLUE)
+                .setWidth(200).setHeight(25)
+                .setNorth(5).setSouth(15)
+                .confirm(subtitle, screen, foreground);
+
+        // Row 2, Col 0: Mode Toggle (Award vs Deduct)
+        editButton = new JButtonListener("Mode: Award (+)", (e) -> {
+            isDeductMode = !isDeductMode;
+            if (isDeductMode) {
+                editButton.setText("Mode: Deduct (-)");
+                editButton.setBackground(new Color(255, 80, 80));
+                editButton.setForeground(Color.WHITE);
+                if (selectedButton != null) {
+                    selectedButton.setBackground(new Color(255, 80, 80));
+                    selectedButton.setForeground(Color.WHITE);
+                }
             } else {
-                ((JButton) e.getSource()).setBackground(Color.white);
+                editButton.setText("Mode: Award (+)");
+                editButton.setBackground(Color.WHITE);
+                editButton.setForeground(Color.BLACK);
+                if (selectedButton != null) {
+                    selectedButton.setBackground(Screen.JEOPARDY_YELLOW);
+                    selectedButton.setForeground(Color.BLACK);
+                }
             }
-            timer = INTERVAL * Screen.FPS;
         });
+        editButton.setBackground(Color.WHITE);
+        editButton.setForeground(Color.BLACK);
+        ButtonConfigure.configure()
+                .setX(0).setY(2)
+                .setWidth(130).setHeight(30)
+                .setNorth(5).setSouth(15).setWest(10).setEast(10)
+                .finish(editButton, screen, foreground);
 
-        ButtonConfigure.configure().setX(spot - 1).setSouth(100).finish(edit, screen, foreground);
+        // Row 2, Col 2: Next Button (Awards/deducts points once upon advancing)
+        nextButton = new JButtonListener("Next =>", (e) -> {
+            if (selectedPlayer != null && currentQuestion != null) {
+                int value = currentQuestion.getValue();
+                if (isDeductMode) {
+                    selectedPlayer.addScore(-value);
+                } else {
+                    selectedPlayer.addScore(value);
+                }
+            }
+            selectedPlayer = null;
+            selectedButton = null;
 
-        JLabel topTitle = new JLabel();
-
-        TextConfigure.configure().setX(spot).setSouth(100).setText("Who Answered Correctly").setSize(20).setStyle(Font.BOLD)
-                .setBackgroundColor(Screen.JEOPARDY_BLUE).confirm(topTitle, screen, foreground);
-
-        JButtonListener next = new JButtonListener("Next", (e) -> {
-            if(screen.getJeopardyBoardMenu() instanceof BoardMenuManager menu) {
-                if(menu.isBoardEmpty()) {
+            if (screen.getJeopardyBoardMenu() instanceof BoardMenuManager menu) {
+                if (menu.isBoardEmpty()) {
                     screen.setContentPane(screen.getWinningMenu());
                     return;
                 }
             }
             screen.setContentPane(screen.getJeopardyBoardMenu());
         });
+        nextButton.setBackground(Color.WHITE);
+        nextButton.setForeground(Color.BLACK);
+        ButtonConfigure.configure()
+                .setX(2).setY(2)
+                .setWidth(130).setHeight(30)
+                .setNorth(5).setSouth(15).setWest(10).setEast(10)
+                .finish(nextButton, screen, foreground);
 
-        ButtonConfigure.configure().setX(spot + 1).setSouth(100).finish(next, screen, foreground);
-
-        int maxPlayersForColumn = subjects.size();
-        int x = 0;
-        int yOffset = 1;
-
-        for(int i = 0; i < players.size(); i++) {
+        // Rows 3+: Player Selection Buttons (Grid: 3 columns wide: col 0, 1, 2)
+        int cols = 3;
+        for (int i = 0; i < players.size(); i++) {
             IPlayer player = players.get(i);
-            int y = subjects.get(i % maxPlayersForColumn).getQuestions().size() + yOffset;
+            int col = i % cols;
+            int row = 3 + (i / cols);
 
-            JButtonListener button = new JButtonListener((e) -> {
-                if(currentQuestion != null) {
-                    int value = currentQuestion.getValue();
-                    if(editMode) {
-                        ((JButton) e.getSource()).setBackground(Color.RED);
-                        player.addScore(-value);
-                    } else {
-                        ((JButton) e.getSource()).setBackground(Color.YELLOW);
-                        player.addScore(value);
+            JButtonListener playerBtn = new JButtonListener(player.getNames() + " ($" + player.getScore() + ")", null);
+            playerBtn.setBackground(Color.WHITE);
+            playerBtn.setForeground(Color.BLACK);
+
+            playerBtn.addActionListener((e) -> {
+                if (selectedPlayer == player) {
+                    // Deselect if already selected
+                    selectedPlayer = null;
+                    if (selectedButton != null) {
+                        selectedButton.setBackground(Color.WHITE);
+                        selectedButton.setForeground(Color.BLACK);
                     }
-                    timer = INTERVAL * Screen.FPS;
+                    selectedButton = null;
+                } else {
+                    // Unhighlight previous selection
+                    if (selectedButton != null) {
+                        selectedButton.setBackground(Color.WHITE);
+                        selectedButton.setForeground(Color.BLACK);
+                    }
+                    selectedPlayer = player;
+                    selectedButton = playerBtn;
+                    if (isDeductMode) {
+                        selectedButton.setBackground(new Color(255, 80, 80));
+                        selectedButton.setForeground(Color.WHITE);
+                    } else {
+                        selectedButton.setBackground(Screen.JEOPARDY_YELLOW);
+                        selectedButton.setForeground(Color.BLACK);
+                    }
                 }
             });
 
-            allButtons.add(button);
-
-            ButtonConfigure.configure().setX(x).setY(y).setText(player.getNames())
-                    .setWidth(75).setHeight(25).finish(button, screen, foreground);
-
-            x++;
-            if(x >= maxPlayersForColumn) {
-                x = 0;
-                yOffset++;
-            }
+            playerButtons.add(playerBtn);
+            ButtonConfigure.configure()
+                    .setX(col).setY(row)
+                    .setWidth(120).setHeight(30)
+                    .setNorth(6).setSouth(6).setWest(10).setEast(10)
+                    .finish(playerBtn, screen, foreground);
         }
 
-        allButtons.add(edit);
-        allButtons.add(next);
+        foreground.setOpaque(false);
+        foreground.setLayout(screen.getLayout());
+        foreground.setBounds(0, 0, width, height);
     }
 
     @Override
@@ -123,27 +200,8 @@ public class RewardMenuManager extends AbstractMenu implements Consumer<IQuestio
     }
 
     @Override
-    public JPanel addForeground() {
-        return new JPanel();
-    }
-
-    @Override
     public void tick() {
-        if(allButtons == null) {
-            return;
-        }
-
-        if(timer > 0) {
-            timer--;
-        }
-
-        if(timer <= 0) {
-            allButtons.forEach((e) -> {
-                e.setBackground(Color.white);
-            });
-            editMode = false;
-        }
-
+        // No auto-clearing timer
     }
 
     @Override

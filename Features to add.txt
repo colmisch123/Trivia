@@ -1,0 +1,3 @@
+Some form of hint system, where you can reveal additional clues for a question by clicking a button (not all questions will have hints).
+
+Maybe add a button that manually adds/subtracts points just in case

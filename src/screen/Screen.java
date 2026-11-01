@@ -4,14 +4,12 @@ import impl.JeopardyBoard;
 import intr.IBoard;
 import intr.ISubject;
 import menu.*;
+import util.JsonHandler;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class Screen extends JFrame implements Runnable {
     public final static Color JEOPARDY_BLUE = new Color(4, 16, 84);
@@ -124,12 +122,7 @@ public class Screen extends JFrame implements Runnable {
     }
 
     public void setFileToOpen(String fileToOpen) {
-        String json = ".json";
-        if(!fileToOpen.contains(json)) {
-            fileToOpen += json;
-        }
-
-        this.fileToOpen = fileToOpen.toLowerCase().strip().replaceAll(" ", "_");
+        this.fileToOpen = JsonHandler.normalizeFileName(fileToOpen);
     }
 
     @Override

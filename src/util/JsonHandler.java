@@ -1,6 +1,8 @@
 package util;
 
 import com.google.gson.*;
+import impl.JeopardyQuestionFactory;
+import impl.JeopardySubjectFactory;
 import intr.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -8,9 +10,11 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class JsonHandler {
     private static final String TITLE = "subject_title";
@@ -20,6 +24,45 @@ public class JsonHandler {
     private static final String VALUE = "value";
 
     private static final String DIRECTORY = System.getProperty("user.dir");
+
+    public static class BoardValidationResult {
+        private final boolean valid;
+        private final String message;
+        private final String resolvedFileName;
+
+        public BoardValidationResult(boolean valid, String message, String resolvedFileName) {
+            this.valid = valid;
+            this.message = message;
+            this.resolvedFileName = resolvedFileName;
+        }
+
+        public boolean isValid() {
+            return valid;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public String getResolvedFileName() {
+            return resolvedFileName;
+        }
+    }
+
+    public static String normalizeFileName(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return "";
+        }
+        String clean = fileName.trim().replace('\\', '/');
+        if (clean.toLowerCase().startsWith("savedboards/")) {
+            clean = clean.substring("savedboards/".length());
+        }
+        clean = clean.replaceAll(" ", "_");
+        if (!clean.toLowerCase().endsWith(".json")) {
+            clean += ".json";
+        }
+        return clean;
+    }
 
     public static <T extends ISubject> String serializeBoard(IBoard<T> board) {
         return serializeSubjects(board.getSubjects());
@@ -46,7 +89,6 @@ public class JsonHandler {
             jsonSubject.add(SUBJECT, questionJson);
             entireJson.add(jsonSubject);
         }
-
 
         return gson.toJson(entireJson);
     }
@@ -77,13 +119,9 @@ public class JsonHandler {
     }
 
     public static void exportJsonToFile(@NotNull String json, @NotNull String fileName) {
-        String file = fileName;
+        String file = normalizeFileName(fileName);
 
-        if(!file.contains(".json")) {
-            file += ".json";
-        }
-
-        //Makes sure the directory exists
+        // Makes sure the directory exists
         File directory = new File(DIRECTORY + "/SavedBoards");
         if (!directory.exists()) {
             if (!directory.mkdirs()) {
@@ -91,7 +129,7 @@ public class JsonHandler {
             }
         }
 
-        try(FileWriter fileWriter = new FileWriter(directory.getAbsolutePath() + "/" + file)) {
+        try(FileWriter fileWriter = new FileWriter(new File(directory, file))) {
             fileWriter.write(json);
             fileWriter.flush();
         } catch (IOException e) {
@@ -101,26 +139,106 @@ public class JsonHandler {
 
     @Nullable
     public static String readJsonFromFile(String fileName) {
-        String file = fileName;
-
-        if(!file.contains(".json")) {
-            file += ".json";
+        if (fileName == null || fileName.isBlank()) {
+            return null;
         }
 
-        String filePath = DIRECTORY + "/SavedBoards/" + file;
+        String normalized = normalizeFileName(fileName);
 
-        try {
-            File openFile = new File(filePath);
-            Scanner scanner = new Scanner(openFile);
-            StringBuilder jsonBuilder = new StringBuilder();
-            while(scanner.hasNextLine()) {
-                jsonBuilder.append(scanner.nextLine()).append("\n");
+        List<File> candidates = new ArrayList<>();
+        candidates.add(new File(DIRECTORY + "/SavedBoards/" + normalized));
+        candidates.add(new File("SavedBoards/" + normalized));
+        candidates.add(new File(DIRECTORY + "/" + normalized));
+        candidates.add(new File(normalized));
+        candidates.add(new File(fileName));
+
+        for (File candidate : candidates) {
+            if (candidate.exists() && candidate.isFile()) {
+                try {
+                    return Files.readString(candidate.toPath(), StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    System.err.println("Error reading file: " + candidate.getAbsolutePath());
+                }
             }
-            return jsonBuilder.toString();
-        } catch (Exception e) {
-            System.out.println("Error loading json file");
+        }
+
+        // Fallback to classpath resources if bundled
+        String[] resourceCandidates = {
+            "/SavedBoards/" + normalized,
+            "/" + normalized,
+            "SavedBoards/" + normalized,
+            normalized
+        };
+        for (String rc : resourceCandidates) {
+            try (InputStream is = JsonHandler.class.getResourceAsStream(rc)) {
+                if (is != null) {
+                    return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                }
+            } catch (Exception ignored) {
+            }
         }
 
         return null;
+    }
+
+    public static BoardValidationResult validateBoardFile(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return new BoardValidationResult(false, "Please enter a board file name.", "");
+        }
+
+        String normalized = normalizeFileName(fileName);
+        String json = readJsonFromFile(normalized);
+
+        if (json == null || json.isBlank()) {
+            return new BoardValidationResult(false, 
+                "Board file '" + normalized + "' was not found in SavedBoards.", normalized);
+        }
+
+        try {
+            List<ISubject> subjects = deSerializeSubjects(json, 
+                JeopardySubjectFactory.getFactory(), 
+                JeopardyQuestionFactory.getFactory());
+
+            if (subjects == null || subjects.isEmpty()) {
+                return new BoardValidationResult(false, 
+                    "Board file '" + normalized + "' contains no categories.", normalized);
+            }
+
+            boolean hasQuestions = false;
+            for (ISubject s : subjects) {
+                if (s.getQuestions() != null && !s.getQuestions().isEmpty()) {
+                    hasQuestions = true;
+                    break;
+                }
+            }
+
+            if (!hasQuestions) {
+                return new BoardValidationResult(false, 
+                    "Board file '" + normalized + "' has categories but no questions.", normalized);
+            }
+
+            return new BoardValidationResult(true, 
+                "Board '" + normalized + "' loaded successfully!", normalized);
+        } catch (Exception e) {
+            return new BoardValidationResult(false, 
+                "Board file '" + normalized + "' is not a valid Jeopardy board JSON format.", normalized);
+        }
+    }
+
+    public static List<String> getAvailableBoardFiles() {
+        List<String> files = new ArrayList<>();
+        File dir = new File(DIRECTORY + "/SavedBoards");
+        if (!dir.exists()) {
+            dir = new File("SavedBoards");
+        }
+        if (dir.exists() && dir.isDirectory()) {
+            File[] fileList = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".json"));
+            if (fileList != null) {
+                for (File f : fileList) {
+                    files.add(f.getName());
+                }
+            }
+        }
+        return files;
     }
 }
